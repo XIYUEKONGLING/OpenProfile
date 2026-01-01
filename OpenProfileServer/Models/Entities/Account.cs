@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using OpenProfileServer.Models.Entities.Auth;
 using OpenProfileServer.Models.Entities.Base;
 using OpenProfileServer.Models.Enums;
 
@@ -27,5 +28,9 @@ public class Account
     public virtual Profile? Profile { get; set; }
     public virtual AccountSettings? Settings { get; set; }
 
+    public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
     public virtual ICollection<OrganizationMember> Memberships { get; set; } = new List<OrganizationMember>();
+    
+    // [MaxLength(64)]
+    // public string SecurityStamp { get; set; } = Guid.NewGuid().ToString();
 }

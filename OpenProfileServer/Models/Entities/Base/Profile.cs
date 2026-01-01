@@ -45,4 +45,5 @@ public abstract class Profile
 
     // Common Collections
     public virtual ICollection<SocialLink> SocialLinks { get; set; } = new List<SocialLink>();
+    public virtual ICollection<ContactMethod> Contacts { get; set; } = new List<ContactMethod>();
 }
