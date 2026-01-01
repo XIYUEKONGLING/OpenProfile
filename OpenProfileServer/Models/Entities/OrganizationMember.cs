@@ -17,8 +17,7 @@ public class OrganizationMember
     public Guid AccountId { get; set; }
     public virtual Account Account { get; set; } = null!;
 
-    [MaxLength(64)]
-    public string Role { get; set; } = "Member";
+    public MemberRole Role { get; set; } = MemberRole.Member;
 
     public Visibility Visibility { get; set; } = Visibility.Public;
 
