@@ -1,0 +1,6 @@
+@OpenProfileServer_HostAddress = http://localhost:5071
+
+GET {{OpenProfileServer_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

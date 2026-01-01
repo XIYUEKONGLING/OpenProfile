@@ -1,0 +1,7 @@
+﻿services:
+  openprofileserver:
+    image: openprofileserver
+    build:
+      context: .
+      dockerfile: OpenProfileServer/Dockerfile
+
