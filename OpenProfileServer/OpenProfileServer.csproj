@@ -43,11 +43,11 @@
       <Folder Include="Constants\" />
       <Folder Include="Controllers\" />
       <Folder Include="Data\" />
+      <Folder Include="Entities\" />
       <Folder Include="Extensions\" />
+      <Folder Include="Infrastructure\" />
       <Folder Include="Interfaces\" />
       <Folder Include="Middlewares\" />
-      <Folder Include="Models\Entities\" />
-      <Folder Include="Models\ENums\" />
       <Folder Include="Services\" />
       <Folder Include="Structs\" />
       <Folder Include="Utilities\" />
