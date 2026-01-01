@@ -10,9 +10,14 @@ public class Account
     [Key]
     public Guid Id { get; set; } = Guid.NewGuid();
 
+    /// <summary>
+    /// The unique handle used in URLs and @mentions (e.g., "johndoe").
+    /// Mutable but must be unique system-wide.
+    /// Matches GitHub's 'username'.
+    /// </summary>
     [Required] 
     [MaxLength(64)]
-    public string Username { get; set; } = string.Empty;
+    public string AccountName { get; set; } = string.Empty;
 
     [Required] 
     [MaxLength(128)]
