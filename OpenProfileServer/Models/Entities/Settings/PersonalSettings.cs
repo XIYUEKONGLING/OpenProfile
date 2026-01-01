@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations.Schema;
+using OpenProfileServer.Models.Entities.Base;
 using OpenProfileServer.Models.Enums;
 
 namespace OpenProfileServer.Models.Entities.Settings;

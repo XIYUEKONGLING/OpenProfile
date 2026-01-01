@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
-namespace OpenProfileServer.Models.Entities;
+namespace OpenProfileServer.Models.Entities.Base;
 
 /// <summary>
 /// Abstract base class for PRIVATE account configurations.
