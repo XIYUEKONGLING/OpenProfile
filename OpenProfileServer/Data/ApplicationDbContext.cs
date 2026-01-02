@@ -16,9 +16,10 @@ public class ApplicationDbContext : DbContext
     }
 
     // ==========================================
-    // Core Accounts
+    // Core Accounts & Social
     // ==========================================
     public DbSet<Account> Accounts { get; set; }
+    public DbSet<AccountFollower> AccountFollowers { get; set; }
     public DbSet<AccountEmail> AccountEmails { get; set; }
     public DbSet<AccountCredential> AccountCredentials { get; set; }
     public DbSet<AccountSecurity> AccountSecurities { get; set; }
@@ -26,7 +27,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
 
     // ==========================================
-    // Profiles (Polymorphic)
+    // Profiles (Polymorphic TPT)
     // ==========================================
     public DbSet<Profile> Profiles { get; set; }
     public DbSet<PersonalProfile> PersonalProfiles { get; set; }
@@ -34,12 +35,13 @@ public class ApplicationDbContext : DbContext
     public DbSet<ApplicationProfile> ApplicationProfiles { get; set; }
 
     // ==========================================
-    // Settings (Polymorphic)
+    // Settings (Polymorphic TPT)
     // ==========================================
     public DbSet<AccountSettings> AccountSettings { get; set; }
     public DbSet<PersonalSettings> PersonalSettings { get; set; }
     public DbSet<OrganizationSettings> OrganizationSettings { get; set; }
     public DbSet<ApplicationSettings> ApplicationSettings { get; set; }
+    public DbSet<SystemSetting> SystemSettings { get; set; }
 
     // ==========================================
     // Details & Collections
@@ -63,6 +65,7 @@ public class ApplicationDbContext : DbContext
         ConfigureProfiles(modelBuilder);
         ConfigureSettings(modelBuilder);
         ConfigureDetails(modelBuilder);
+        ConfigureSystemSettings(modelBuilder);
     }
 
     private static void ConfigureAccounts(ModelBuilder modelBuilder)
@@ -70,7 +73,7 @@ public class ApplicationDbContext : DbContext
         // Account Config
         modelBuilder.Entity<Account>(entity =>
         {
-            entity.HasIndex(e => e.AccountName).IsUnique(); // Handles must be unique
+            entity.HasIndex(e => e.AccountName).IsUnique(); 
             
             // 1:1 Relationships
             entity.HasOne(a => a.Credential)
@@ -83,29 +86,42 @@ public class ApplicationDbContext : DbContext
                 .HasForeignKey<AccountSecurity>(s => s.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Settings is optional (0..1)
             entity.HasOne(a => a.Settings)
                 .WithOne(s => s.Account)
-                .HasForeignKey<AccountSettings>(s => s.Id) // Id matches Account.Id
+                .HasForeignKey<AccountSettings>(s => s.Id)
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // Profile is optional (0..1) but typically exists
             entity.HasOne(a => a.Profile)
                 .WithOne(p => p.Account)
-                .HasForeignKey<Profile>(p => p.Id) // Id matches Account.Id
+                .HasForeignKey<Profile>(p => p.Id) 
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Account Follower Config (Self-referencing Many-to-Many)
+        modelBuilder.Entity<AccountFollower>(entity =>
+        {
+            entity.HasKey(f => new { f.FollowerId, f.FollowingId });
+
+            entity.HasOne(f => f.Follower)
+                .WithMany(a => a.Following)
+                .HasForeignKey(f => f.FollowerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(f => f.Following)
+                .WithMany(a => a.Followers)
+                .HasForeignKey(f => f.FollowingId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 
         // Email Config
         modelBuilder.Entity<AccountEmail>(entity =>
         {
-            entity.HasIndex(e => e.Email).IsUnique(); // Global unique emails
+            entity.HasIndex(e => e.Email).IsUnique();
         });
 
         // Organization Member Config
         modelBuilder.Entity<OrganizationMember>(entity =>
         {
-            // Composite unique constraint: User can only be in an Org once
             entity.HasIndex(om => new { om.OrganizationId, om.AccountId }).IsUnique();
 
             entity.HasOne(om => om.Organization)
@@ -116,20 +132,17 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(om => om.Account)
                 .WithMany(a => a.Memberships)
                 .HasForeignKey(om => om.AccountId)
-                .OnDelete(DeleteBehavior.Cascade); // If user is deleted, remove membership
+                .OnDelete(DeleteBehavior.Cascade);
         });
     }
 
     private static void ConfigureProfiles(ModelBuilder modelBuilder)
     {
-        // TPT Strategy for Profiles
         modelBuilder.Entity<Profile>().UseTptMappingStrategy();
         modelBuilder.Entity<PersonalProfile>().ToTable("PersonalProfiles");
         modelBuilder.Entity<OrganizationProfile>().ToTable("OrganizationProfiles");
         modelBuilder.Entity<ApplicationProfile>().ToTable("ApplicationProfiles");
 
-        // Profile Owned Entity Configuration (Assets)
-        // EF Core handles Owned Types well, but explicit column naming ensures clarity in DB
         modelBuilder.Entity<Profile>(entity =>
         {
             entity.OwnsOne(p => p.Avatar, nav =>
@@ -150,11 +163,18 @@ public class ApplicationDbContext : DbContext
 
     private static void ConfigureSettings(ModelBuilder modelBuilder)
     {
-        // TPT Strategy for Settings
         modelBuilder.Entity<AccountSettings>().UseTptMappingStrategy();
         modelBuilder.Entity<PersonalSettings>().ToTable("PersonalSettings");
         modelBuilder.Entity<OrganizationSettings>().ToTable("OrganizationSettings");
         modelBuilder.Entity<ApplicationSettings>().ToTable("ApplicationSettings");
+    }
+
+    private static void ConfigureSystemSettings(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SystemSetting>(entity =>
+        {
+            entity.HasIndex(s => s.Key).IsUnique();
+        });
     }
 
     private static void ConfigureDetails(ModelBuilder modelBuilder)

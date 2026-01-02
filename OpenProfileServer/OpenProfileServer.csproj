@@ -48,6 +48,7 @@
       <Folder Include="Infrastructure\" />
       <Folder Include="Interfaces\" />
       <Folder Include="Middlewares\" />
+      <Folder Include="Models\DTOs\" />
       <Folder Include="Services\" />
       <Folder Include="Structs\" />
       <Folder Include="Utilities\" />

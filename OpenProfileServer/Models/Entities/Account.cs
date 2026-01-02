@@ -34,4 +34,9 @@ public class Account
     public virtual AccountSecurity? Security { get; set; }
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
-    public virtual ICollection<OrganizationMember> Memberships { get; set; } = new List<OrganizationMember>();}
+    public virtual ICollection<OrganizationMember> Memberships { get; set; } = new List<OrganizationMember>();
+    
+    
+    public virtual ICollection<AccountFollower> Followers { get; set; } = new List<AccountFollower>();
+    public virtual ICollection<AccountFollower> Following { get; set; } = new List<AccountFollower>();
+}

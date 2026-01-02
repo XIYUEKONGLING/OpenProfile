@@ -15,4 +15,19 @@ public abstract class AccountSettings
 
     [Required]
     public virtual Account Account { get; set; } = null!;
+    
+    /// <summary>
+    /// Whether others are allowed to follow this account.
+    /// </summary>
+    public bool AllowFollowers { get; set; } = true;
+    
+    /// <summary>
+    /// Whether to show the 'Following' list to the public.
+    /// </summary>
+    public bool ShowFollowingList { get; set; } = true;
+    
+    /// <summary>
+    /// Whether to show the 'Followers' list to the public.
+    /// </summary>
+    public bool ShowFollowersList { get; set; } = true;
 }
