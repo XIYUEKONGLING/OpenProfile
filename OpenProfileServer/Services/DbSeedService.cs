@@ -1,15 +1,14 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Newtonsoft.Json;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
-using OpenProfileServer.Models.DTOs.Core;
 using OpenProfileServer.Models.Entities;
 using OpenProfileServer.Models.Entities.Auth;
 using OpenProfileServer.Models.Entities.Profiles;
 using OpenProfileServer.Models.Entities.Settings;
 using OpenProfileServer.Models.Enums;
+using OpenProfileServer.Models.ValueObjects;
 using OpenProfileServer.Utilities;
 
 namespace OpenProfileServer.Services;
@@ -27,20 +26,42 @@ public class DbSeedService
 
     public async Task SeedAsync()
     {
+        await SeedSiteMetadataAsync();
         await SeedSystemSettingsAsync();
         await SeedRootAccountAsync();
     }
 
-    private async Task SeedSystemSettingsAsync()
+    private async Task SeedSiteMetadataAsync()
     {
-        // Default logo configuration
-        var defaultLogo = new AssetDto
+        if (await _context.SiteMetadata.AnyAsync()) return;
+
+        var defaultMetadata = new SiteMetadata
         {
-            Type = AssetType.Text,
-            Value = "\U0001F464",
-            Tag = "Default Site Logo"
+            SiteName = "OpenProfile",
+            SiteDescription = "Open source identity management platform.",
+            Copyright = $"© {DateTime.UtcNow.Year} OpenProfile Team",
+            ContactEmail = "admin@localhost",
+            Logo = new Asset
+            {
+                Type = AssetType.Text,
+                Value = "\U0001F464",
+                Tag = "Default Site Logo"
+            },
+            Favicon = new Asset
+            {
+                Type = AssetType.Text,
+                Value = "\U0001F194",
+                Tag = "Default Favicon"
+            },
+            UpdatedAt = DateTime.UtcNow
         };
 
+        _context.SiteMetadata.Add(defaultMetadata);
+        await _context.SaveChangesAsync();
+    }
+
+    private async Task SeedSystemSettingsAsync()
+    {
         var defaults = new Dictionary<string, (string Value, string Type, string Desc)>
         {
             { 
@@ -59,21 +80,9 @@ public class DbSeedService
                 SystemSettingKeys.AllowSearchEngineIndexing, 
                 ("true", "boolean", "Enable robots.txt indexing.") 
             },
-            { 
-                SystemSettingKeys.SiteName, 
-                ("OpenProfile", "string", "Site title.") 
-            },
-            { 
-                SystemSettingKeys.SiteDescription, 
-                ("Identity management platform.", "string", "Site tagline.") 
-            },
-            { 
-                SystemSettingKeys.ContactEmail, 
-                ("admin@localhost", "string", "Public contact address.") 
-            },
-            { 
-                SystemSettingKeys.SiteLogo, 
-                (JsonConvert.SerializeObject(defaultLogo), "json", "Site branding asset.") 
+            {
+                SystemSettingKeys.DefaultStorageLimit,
+                ("104857600", "number", "Default storage quota in bytes (100MB).")
             }
         };
 

@@ -46,6 +46,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<OrganizationSettings> OrganizationSettings { get; set; }
     public DbSet<ApplicationSettings> ApplicationSettings { get; set; }
     public DbSet<SystemSetting> SystemSettings { get; set; }
+    public DbSet<SiteMetadata> SiteMetadata { get; set; }
 
     // ==========================================
     // Details & Collections
@@ -70,6 +71,7 @@ public class ApplicationDbContext : DbContext
         ConfigureSettings(modelBuilder);
         ConfigureDetails(modelBuilder);
         ConfigureSystemSettings(modelBuilder);
+        ConfigureSiteMetadata(modelBuilder);
     }
 
     private static void ConfigureAccounts(ModelBuilder modelBuilder)
@@ -214,6 +216,26 @@ public class ApplicationDbContext : DbContext
         modelBuilder.Entity<SystemSetting>(entity =>
         {
             entity.HasIndex(s => s.Key).IsUnique();
+        });
+    }
+
+    private static void ConfigureSiteMetadata(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<SiteMetadata>(entity =>
+        {
+            entity.OwnsOne(m => m.Logo, nav =>
+            {
+                nav.Property(p => p.Type).HasColumnName("Logo_Type");
+                nav.Property(p => p.Value).HasColumnName("Logo_Value");
+                nav.Property(p => p.Tag).HasColumnName("Logo_Tag");
+            });
+
+            entity.OwnsOne(m => m.Favicon, nav =>
+            {
+                nav.Property(p => p.Type).HasColumnName("Favicon_Type");
+                nav.Property(p => p.Value).HasColumnName("Favicon_Value");
+                nav.Property(p => p.Tag).HasColumnName("Favicon_Tag");
+            });
         });
     }
 
