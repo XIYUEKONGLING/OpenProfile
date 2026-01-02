@@ -1,11 +1,12 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Newtonsoft.Json;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
+using OpenProfileServer.Models.DTOs.Core;
 using OpenProfileServer.Models.Entities;
 using OpenProfileServer.Models.Entities.Auth;
-using OpenProfileServer.Models.Entities.Base;
 using OpenProfileServer.Models.Entities.Profiles;
 using OpenProfileServer.Models.Entities.Settings;
 using OpenProfileServer.Models.Enums;
@@ -32,27 +33,63 @@ public class DbSeedService
 
     private async Task SeedSystemSettingsAsync()
     {
-        // Check if critical settings exist, if not, create them
-        if (!await _context.SystemSettings.AnyAsync(s => s.Key == SystemSettingKeys.AllowRegistration))
+        // Default logo configuration
+        var defaultLogo = new AssetDto
         {
-            _context.SystemSettings.Add(new SystemSetting
-            {
-                Key = SystemSettingKeys.AllowRegistration,
-                Value = "true",
-                ValueType = "boolean",
-                Description = "Allows new users to register."
-            });
-        }
+            Type = AssetType.Text,
+            Value = "\U0001F464",
+            Tag = "Default Site Logo"
+        };
 
-        if (!await _context.SystemSettings.AnyAsync(s => s.Key == SystemSettingKeys.MaintenanceMode))
+        var defaults = new Dictionary<string, (string Value, string Type, string Desc)>
         {
-            _context.SystemSettings.Add(new SystemSetting
+            { 
+                SystemSettingKeys.AllowRegistration, 
+                ("true", "boolean", "Allows new users to register.") 
+            },
+            { 
+                SystemSettingKeys.RequireEmailVerification, 
+                ("false", "boolean", "Requires users to verify email before full access.") 
+            },
+            { 
+                SystemSettingKeys.MaintenanceMode, 
+                ("false", "boolean", "Puts the server in maintenance mode.") 
+            },
+            { 
+                SystemSettingKeys.AllowSearchEngineIndexing, 
+                ("true", "boolean", "Enable robots.txt indexing.") 
+            },
+            { 
+                SystemSettingKeys.SiteName, 
+                ("OpenProfile", "string", "Site title.") 
+            },
+            { 
+                SystemSettingKeys.SiteDescription, 
+                ("Identity management platform.", "string", "Site tagline.") 
+            },
+            { 
+                SystemSettingKeys.ContactEmail, 
+                ("admin@localhost", "string", "Public contact address.") 
+            },
+            { 
+                SystemSettingKeys.SiteLogo, 
+                (JsonConvert.SerializeObject(defaultLogo), "json", "Site branding asset.") 
+            }
+        };
+
+        foreach (var (key, (value, type, desc)) in defaults)
+        {
+            if (!await _context.SystemSettings.AnyAsync(s => s.Key == key))
             {
-                Key = SystemSettingKeys.MaintenanceMode,
-                Value = "false",
-                ValueType = "boolean",
-                Description = "Puts the server in maintenance mode."
-            });
+                _context.SystemSettings.Add(new SystemSetting
+                {
+                    Key = key,
+                    Value = value,
+                    ValueType = type,
+                    Description = desc,
+                    UpdatedAt = DateTime.UtcNow
+                });
+            }
         }
         
         await _context.SaveChangesAsync();
@@ -60,12 +97,10 @@ public class DbSeedService
 
     private async Task SeedRootAccountAsync()
     {
-        // Check if any ROOT account exists
         var rootExists = await _context.Accounts.AnyAsync(a => a.Role == AccountRole.Root);
         if (rootExists) return;
 
         var (hash, salt) = CryptographyProvider.CreateHash(_securityOptions.RootPassword);
-        
         var accountId = Guid.NewGuid();
 
         var rootAccount = new Account
@@ -87,10 +122,9 @@ public class DbSeedService
             UpdatedAt = DateTime.UtcNow
         };
 
-        // Root needs a profile to function in UI
         var profile = new PersonalProfile
         {
-            Id = accountId, // Shared Key
+            Id = accountId, 
             Account = rootAccount,
             DisplayName = "System Administrator",
             Description = "Built-in root account",
