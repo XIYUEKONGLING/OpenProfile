@@ -32,27 +32,35 @@ public class Program
 
     private static void RegisterServices(WebApplicationBuilder builder)
     {
-        // 1. Controller & JSON Configuration (PascalCase)
+        // 1. Configure Minimal API JSON Options (Used by AddOpenApi for schema generation)
+        builder.Services.ConfigureHttpJsonOptions(options =>
+        {
+            options.SerializerOptions.PropertyNamingPolicy = null; // PascalCase
+            options.SerializerOptions.PropertyNameCaseInsensitive = true; // Allow camelCase input
+        });
+        
+        // 2. Controller & JSON Configuration (PascalCase)
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.PropertyNamingPolicy = null; // PascalCase to match .NET standards
+                // options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
             });
 
-        // 2. Core Infrastructure (via Extensions)
+        // 3. Core Infrastructure (via Extensions)
         builder.Services.AddDatabaseContext(builder.Configuration);
         builder.Services.AddServerCaching(builder.Configuration);      // FusionCache + Redis (Dynamic Options)
         builder.Services.AddServerRateLimiting(builder.Configuration); // Rate Limiting (Dynamic Policies)
         builder.Services.AddServerCompression(builder.Configuration);  // Response Compression (Gzip/Brotli)
         
-        // 3. Application Services
+        // 4. Application Services
         builder.Services.AddServerServices();
 
-        // 4. Health Checks
+        // 5. Health Checks
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>(name: "database");
 
-        // 5. OpenAPI / Swagger
+        // 6. OpenAPI / Swagger
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi();
     }
