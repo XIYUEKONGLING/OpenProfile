@@ -7,7 +7,12 @@ All endpoints accepting a profile or organization identifier support two formats
 - **AccountName**: `username` (e.g., `/api/profiles/alice`)
 - **UUID**: `@{guid}` (e.g., `/api/profiles/@550e8400-e29b-41d4-a716-446655440000`)
 
-### 1.2 Status & Visibility Logic
+### 1.2 Data Format
+- **Casing**: The API uses **PascalCase** for all JSON keys in both requests and responses.
+- **Input Flexibility**: JSON property matching is case-insensitive for incoming requests to improve client compatibility.
+
+### 1.3 Status & Visibility Logic
+
 The API response and Static Generator behavior depend on the `AccountStatus`.
 
 | Status | API Response | Static Generator | Account Deletion | Social Actions |
@@ -17,9 +22,10 @@ The API response and Static Generator behavior depend on the `AccountStatus`.
 | **Banned** | Banned (Status Only) | Banned (Status Only) | ❌ **Forbidden (Locked)** | ❌ Forbidden |
 | **PendingDeletion**| 404 / Error | Skipped | N/A (Must Restore) | ❌ Forbidden |
 
-### 1.3 Update Semantics
-- **POST**: Full Update (Replace all fields).
-- **PATCH**: Partial Update (Update only provided fields).
+### 1.4 Update Semantics
+
+- **POST**: Full Update (Replace all fields). Missing fields will be reset to defaults.
+- **PATCH**: Partial Update (Update only provided non-null fields).
 
 ---
 
@@ -37,32 +43,47 @@ These endpoints provide information about the server instance and site branding.
 
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/api/admin/meta` | **Full Update** site metadata. | Admin+ |
-| **PATCH** | `/api/admin/meta` | **Partial Update** site metadata. | Admin+ |
+| **POST** | `/api/admin/meta` | **Full Update** site metadata. | AdminOrHigher |
+| **PATCH** | `/api/admin/meta` | **Partial Update** site metadata. | AdminOrHigher |
 
 ---
 
-## 3. Business Logic Details (Block & Follow)
+## 3. Authentication (Dynamic Only)
 
-### 3.1 Block Priority
+Authentication uses JWT Access Tokens and long-lived Refresh Tokens (128-byte entropy).
+
+| Method | Endpoint | Description | Auth Required |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/auth/login` | Login with AccountName/Email. Returns JWT + RefreshToken. | No |
+| **POST** | `/api/auth/refresh` | Exchange RefreshToken for a new JWT. | No |
+| **POST** | `/api/auth/logout` | Revoke a specific RefreshToken. | Yes |
+| **POST** | `/api/auth/logout-all` | **SecurityStamp Reset**: Revokes ALL sessions and JWTs. | Yes |
+
+*Note: Access Tokens are validated against the database's `SecurityStamp` on every request. A reset will result in immediate 401 Unauthorized for all existing JWTs.*
+
+---
+
+## 4. Business Logic Details (Block & Follow)
+
+### 4.1 Block Priority
 When User A attempts to Follow User B, the system checks:
 1.  Does A Block B? → **Yes**: Follow Forbidden.
 2.  Does B Block A? → **Yes**: Follow Forbidden (Return 403 or 404).
 
-### 3.2 Block Side Effects
+### 4.2 Block Side Effects
 When User A calls `POST .../block` to block User B:
 1.  If A is Following B → **Auto Unfollow**.
 2.  If B is Following A → **Auto Remove Follower** (B no longer follows A).
 
-### 3.3 Static Generation Privacy
+### 4.3 Static Generation Privacy
 - **Status Filtering**: When generating `followers.json` or `following.json`, users with `Status != Active` must be filtered out.
 - **Privacy Settings**:
-    - If `AccountSettings.ShowFollowersList == false`, the generator should produce an empty array `[]` (instead of 404) to maintain frontend consistency.
-    - The same logic applies to `following.json`.
+  - If `AccountSettings.ShowFollowersList == false`, the generator should produce an empty array `[]` (instead of 404) to maintain frontend consistency.
+  - The same logic applies to `following.json`.
 
 ---
 
-## 4. Public Profiles (Read-Only / Static Compatible)
+## 5. Public Profiles (Read-Only / Static Compatible)
 
 These endpoints are used by the Static Generator.
 
@@ -78,15 +99,15 @@ These endpoints are used by the Static Generator.
 
 ---
 
-## 5. Personal Management (Dynamic / Protected)
+## 6. Personal Management (Dynamic / Protected)
 
-### 5.1 Lifecycle
+### 6.1 Lifecycle
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **DELETE** | `/api/me` | **Request Account Deletion** (Cooling-off). Forbidden if Banned. | Owner |
 | **POST** | `/api/me/restore` | **Restore Account** (Cancel deletion). | Owner |
 
-### 5.2 Account & Security
+### 6.2 Account & Security
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/me` | Get full account details. | Owner |
@@ -98,7 +119,7 @@ These endpoints are used by the Static Generator.
 | **POST** | `/api/me/password` | Change password. | Owner |
 | **GET** | `/api/me/blocks` | **List blocked users**. | Owner |
 
-### 5.3 Settings & Profile
+### 6.3 Settings & Profile
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/me/settings` | Get personal settings. | Owner |
@@ -108,14 +129,14 @@ These endpoints are used by the Static Generator.
 | **POST** | `/api/me/profile` | Full update profile. | Owner |
 | **PATCH** | `/api/me/profile` | Partial update profile. | Owner |
 
-### 5.4 Invitations (Incoming)
+### 6.4 Invitations (Incoming)
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/me/invitations` | List received invitations. | Owner |
 | **POST** | `/api/me/invitations/{id}/accept` | Accept invitation. | Owner |
 | **POST** | `/api/me/invitations/{id}/decline` | Decline invitation. | Owner |
 
-### 5.5 Social Actions
+### 6.5 Social Actions
 *Operator must be in **Active** status.*
 
 | Method | Endpoint | Description | Permission |
@@ -126,15 +147,15 @@ These endpoints are used by the Static Generator.
 | **POST** | `/api/profiles/{profile}/block` | **Block** target (Auto unfollow & remove follower). | User (Active) |
 | **DELETE** | `/api/profiles/{profile}/block` | **Unblock** target. | User (Active) |
 
-### 5.6 Sub-Resources
+### 6.6 Sub-Resources
 *Endpoints: `/api/me/{resource}` and `/api/me/{resource}/{id}`*
 *Methods: GET, POST (Create/Update), PATCH (Partial Update), DELETE.*
 
 ---
 
-## 6. Organization Management (Dynamic / Protected)
+## 7. Organization Management (Dynamic / Protected)
 
-### 6.1 Lifecycle
+### 7.1 Lifecycle
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs` | List my organizations. | User |
@@ -142,7 +163,7 @@ These endpoints are used by the Static Generator.
 | **DELETE** | `/api/orgs/{org}` | **Request Dissolution** (Forbidden if Banned). | **Owner** |
 | **POST** | `/api/orgs/{org}/restore` | **Restore Organization**. | **Owner** |
 
-### 6.2 Settings & Profile
+### 7.2 Settings & Profile
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs/{org}` | Org Dashboard. | Member+ |
@@ -152,7 +173,7 @@ These endpoints are used by the Static Generator.
 | **POST** | `/api/orgs/{org}/profile` | Full update profile. | **Admin+** |
 | **PATCH** | `/api/orgs/{org}/profile` | Partial update profile. | **Admin+** |
 
-### 6.3 Member Management
+### 7.3 Member Management
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs/{org}/members` | List all members. | Member+ |
@@ -162,25 +183,25 @@ These endpoints are used by the Static Generator.
 | **PATCH** | `/api/orgs/{org}/members/{user}` | Update member role. | **Owner** |
 | **DELETE** | `/api/orgs/{org}/members/{user}` | Kick member. | **Owner** |
 
-### 6.4 Invitations (Outgoing)
+### 7.4 Invitations (Outgoing)
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs/{org}/invitations` | List pending invitations. | **Admin+** |
 | **POST** | `/api/orgs/{org}/invitations` | Send invitation. | **Admin+** |
 | **DELETE** | `/api/orgs/{org}/invitations/{id}` | Revoke invitation. | **Admin+** |
 
-### 6.5 Sub-Resources
+### 7.5 Sub-Resources
 *Endpoints: `/api/orgs/{org}/{resource}`*
 *Permission: **Admin+***
 
 ---
 
-## 7. System Administration (Dynamic / Protected)
+## 8. System Administration (Dynamic / Protected)
 
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/admin/users` | List all users. | Admin+ |
-| **POST** | `/api/admin/users` | Force create user/org. | Admin+ |
-| **PATCH** | `/api/admin/users/{user}/status` | Change status (Active/Suspended/Banned). | Admin+ |
+| **GET** | `/api/admin/users` | List all users. | AdminOrHigher |
+| **POST** | `/api/admin/users` | Force create user/org. | AdminOrHigher |
+| **PATCH** | `/api/admin/users/{user}/status` | Change status (Active/Suspended/Banned). | AdminOrHigher |
 | **DELETE** | `/api/admin/users/{user}` | **Physical Delete** (No cooling-off). | **Root**/Admin |
 | **POST** | `/api/admin/users/{user}/role` | Promote/Demote system role. | **Root** |
