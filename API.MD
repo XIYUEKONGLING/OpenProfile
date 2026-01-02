@@ -25,9 +25,20 @@ The API response and Static Generator behavior depend on the `AccountStatus`.
 
 ## 2. Server & Meta (Public)
 
+These endpoints provide information about the server instance and site branding.
+
 | Method | Endpoint | Description | Static File |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api` | Get server version and mode info. | `api/index.json` |
+| **GET** | `/api` | Get combined server info and site metadata. | `api/index.json` |
+| **GET** | `/api/info` | Get standalone server version and mode. | `api/info.json` |
+| **GET** | `/api/meta` | Get standalone site branding metadata. | `api/meta.json` |
+
+### 2.1 Admin Management (Protected)
+
+| Method | Endpoint | Description | Permission |
+| :--- | :--- | :--- | :--- |
+| **POST** | `/api/admin/meta` | **Full Update** site metadata. | Admin+ |
+| **PATCH** | `/api/admin/meta` | **Partial Update** site metadata. | Admin+ |
 
 ---
 
