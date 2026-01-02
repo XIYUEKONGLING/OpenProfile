@@ -20,12 +20,15 @@ public class ApplicationDbContext : DbContext
     // ==========================================
     public DbSet<Account> Accounts { get; set; }
     public DbSet<AccountFollower> AccountFollowers { get; set; }
-    public DbSet<AccountBlock> AccountBlocks { get; set; } // Added
+    public DbSet<AccountBlock> AccountBlocks { get; set; }
     public DbSet<AccountEmail> AccountEmails { get; set; }
     public DbSet<AccountCredential> AccountCredentials { get; set; }
     public DbSet<AccountSecurity> AccountSecurities { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    
+    // Organization Relations
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
+    public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
 
     // ==========================================
     // Profiles (Polymorphic TPT)
@@ -149,6 +152,26 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(om => om.Account)
                 .WithMany(a => a.Memberships)
                 .HasForeignKey(om => om.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Organization Invitation Config
+        modelBuilder.Entity<OrganizationInvitation>(entity =>
+        {
+            entity.HasOne(i => i.Organization)
+                .WithMany()
+                .HasForeignKey(i => i.OrganizationId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Restrict delete on Inviter to avoid multiple cascade paths
+            entity.HasOne(i => i.Inviter)
+                .WithMany()
+                .HasForeignKey(i => i.InviterId)
+                .OnDelete(DeleteBehavior.Restrict); 
+
+            entity.HasOne(i => i.Invitee)
+                .WithMany()
+                .HasForeignKey(i => i.InviteeId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
