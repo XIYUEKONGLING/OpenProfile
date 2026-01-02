@@ -10,7 +10,7 @@ The project provides two distinct deployment strategies: a **Dynamic API** for f
 
 ## 🚀 Key Features
 
--   **Multi-Account Support**: Distinct profiles for **Personal**, **Organization**, and **Application** accounts using Entity Framework Core TPT (Table-Per-Type) inheritance.
+-   **Multi-Account Support**: Distinct profiles for **Personal** and **Organization** accounts using Entity Framework Core TPT (Table-Per-Type) inheritance.
 -   **Rich Profile Data**: Comprehensive support for assets, work experience, education, galleries, projects, and sponsorship links.
 -   **Dual Deployment Modes**:
     -   **Dynamic Mode**: Full API with Authentication, Registration, and Admin capabilities.
