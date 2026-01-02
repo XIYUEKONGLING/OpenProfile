@@ -26,30 +26,30 @@ public class Program
 
     private static void RegisterConfiguration(WebApplicationBuilder builder)
     {
-        builder.Services.Configure<DatabaseSettings>(
-            builder.Configuration.GetSection(DatabaseSettings.SectionName));
-
-        builder.Services.AddSingleton<IValidateOptions<DatabaseSettings>, DatabaseSettingsValidator>();
+        builder.Services.AddServerConfiguration(builder.Configuration);
     }
 
     private static void RegisterServices(WebApplicationBuilder builder)
     {
+        // 1. Controller & JSON Configuration (PascalCase)
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.PropertyNamingPolicy = null; // PascalCase
-                // options.JsonSerializerOptions.Converters.Add(new JsonStringEnumConverter());
             });
 
-        // Health Checks
+        // 2. Core Infrastructure (via Extensions)
+        builder.Services.AddDatabaseContext(builder.Configuration);
+        builder.Services.AddServerCaching(builder.Configuration);      // FusionCache + Redis (Dynamic Options)
+        builder.Services.AddServerRateLimiting(builder.Configuration); // Rate Limiting (Dynamic Policies)
+
+        // 3. Health Checks
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>(name: "database");
 
-        // OpenAPI / Swagger
+        // 4. OpenAPI / Swagger
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi();
-
-        builder.Services.AddDatabaseContext(builder.Configuration);
     }
 
     private static async Task InitializeAppAsync(WebApplication app)
@@ -60,14 +60,17 @@ public class Program
 
         try
         {
+            // Trigger validation for critical settings immediately upon startup
             var dbSettings = services.GetRequiredService<IOptions<DatabaseSettings>>().Value;
+            _ = services.GetRequiredService<IOptions<CacheOptions>>().Value;
+            _ = services.GetRequiredService<IOptions<SecurityOptions>>().Value;
+            _ = services.GetRequiredService<IOptions<RateLimitOptions>>().Value;
 
             logger.LogInformation("Starting application in {Environment} mode", app.Environment.EnvironmentName);
             logger.LogInformation("Using database provider: {Provider}", dbSettings.Type);
-
+            
+            // Database Migration
             var context = services.GetRequiredService<ApplicationDbContext>();
-
-            // Check if we can connect and apply migrations
             var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
             if (pendingMigrations.Any())
             {
@@ -75,11 +78,16 @@ public class Program
                 await context.Database.MigrateAsync();
             }
 
-            logger.LogInformation("Database initialization completed successfully");
+            logger.LogInformation("Database initialization completed successfully.");
+        }
+        catch (OptionsValidationException ex)
+        {
+            logger.LogCritical("Configuration Validation Failed: {Errors}", string.Join(", ", ex.Failures));
+            throw;
         }
         catch (Exception ex)
         {
-            logger.LogCritical(ex, "An error occurred during application startup sequence");
+            logger.LogCritical(ex, "An error occurred during application startup sequence.");
             throw;
         }
     }
@@ -88,7 +96,6 @@ public class Program
     {
         if (app.Environment.IsDevelopment())
         {
-            // OpenAPI document at /openapi/api.json
             app.MapOpenApi("/openapi/api.json");
 
             app.UseSwaggerUI(options =>
@@ -99,11 +106,11 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+        
+        app.UseRateLimiter();
+        
         app.UseAuthorization();
-
-        // Standard health check endpoint
         app.MapHealthChecks("/health");
-
         app.MapControllers();
     }
 }

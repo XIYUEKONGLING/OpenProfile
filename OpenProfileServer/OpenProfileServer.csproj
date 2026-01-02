@@ -41,7 +41,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Constants\" />
       <Folder Include="Controllers\Admin\" />
       <Folder Include="Controllers\User\" />
       <Folder Include="Entities\" />
@@ -51,7 +50,6 @@
       <Folder Include="Models\DTOs\" />
       <Folder Include="Services\" />
       <Folder Include="Structs\" />
-      <Folder Include="Utilities\" />
     </ItemGroup>
 
 </Project>
