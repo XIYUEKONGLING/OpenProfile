@@ -152,6 +152,7 @@ public class Program
         // Rate Limiting needs to run before expensive operations but after HTTPS
         app.UseRateLimiter();
         
+        app.UseAuthentication(); 
         app.UseAuthorization();
         app.MapHealthChecks("/health");
         app.MapControllers();

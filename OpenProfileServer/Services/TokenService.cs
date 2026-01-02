@@ -24,12 +24,14 @@ public class TokenService : ITokenService
     {
         var key = Encoding.ASCII.GetBytes(_securityOptions.ApplicationSecret);
         var tokenHandler = new JwtSecurityTokenHandler();
-        
+
+        // Include SecurityStamp in claims to allow immediate invalidation
         var claims = new List<Claim>
         {
             new(ClaimTypes.NameIdentifier, account.Id.ToString()),
             new(ClaimTypes.Name, account.AccountName),
-            new(ClaimTypes.Role, account.Role.ToString())
+            new(ClaimTypes.Role, account.Role.ToString()),
+            new("SecurityStamp", account.Credential?.SecurityStamp ?? string.Empty) 
         };
 
         var tokenDescriptor = new SecurityTokenDescriptor
@@ -38,21 +40,18 @@ public class TokenService : ITokenService
             Expires = GetAccessTokenExpiration(),
             Issuer = _jwtOptions.Issuer,
             Audience = _jwtOptions.Audience,
-            SigningCredentials = new SigningCredentials(new SymmetricSecurityKey(key), SecurityAlgorithms.HmacSha256Signature)
+            SigningCredentials = new SigningCredentials(
+                new SymmetricSecurityKey(key), 
+                SecurityAlgorithms.HmacSha256Signature)
         };
 
         var token = tokenHandler.CreateToken(tokenDescriptor);
         return tokenHandler.WriteToken(token);
     }
 
-    public string GenerateRefreshToken()
-    {
-        // Simple secure random string, or JWT if claims are needed in refresh token
-        return Convert.ToBase64String(Guid.NewGuid().ToByteArray()) + "_" + Convert.ToBase64String(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
-    }
+    public string GenerateRefreshToken() => 
+        Guid.NewGuid().ToString("N") + Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(128));
 
-    public DateTime GetAccessTokenExpiration()
-    {
-        return DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenExpirationMinutes);
-    }
+    public DateTime GetAccessTokenExpiration() => 
+        DateTime.UtcNow.AddMinutes(_jwtOptions.AccessTokenExpirationMinutes);
 }

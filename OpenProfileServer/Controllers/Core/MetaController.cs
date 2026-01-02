@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Options;
 using OpenProfileServer.Configuration;
@@ -7,6 +8,7 @@ using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Core;
 using OpenProfileServer.Models.DTOs.Site;
 using OpenProfileServer.Models.Entities;
+using OpenProfileServer.Models.Enums;
 using OpenProfileServer.Models.ValueObjects;
 
 namespace OpenProfileServer.Controllers.Core;
@@ -67,6 +69,7 @@ public class MetaController : ControllerBase
     /// POST /api/admin/meta
     /// Full update of site metadata (Replace all fields).
     /// </summary>
+    [Authorize(Roles = AccountRoles.AdminOrHigher)]
     [HttpPost("admin/meta")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMeta([FromBody] UpdateSiteMetadataRequestDto dto)
     {
@@ -88,6 +91,7 @@ public class MetaController : ControllerBase
     /// PATCH /api/admin/meta
     /// Partial update of site metadata.
     /// </summary>
+    [Authorize(Roles = AccountRoles.AdminOrHigher)]
     [HttpPatch("admin/meta")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchMeta([FromBody] UpdateSiteMetadataRequestDto dto)
     {

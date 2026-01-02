@@ -227,6 +227,7 @@ public static class ServiceCollectionExtensions
     {
         services.AddScoped<ISystemSettingService, SystemSettingService>();
         services.AddScoped<ISiteMetadataService, SiteMetadataService>(); 
+        services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<DbSeedService>();
         
