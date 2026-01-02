@@ -1,4 +1,4 @@
-# OpenProfileServer API Specification (VERSION)
+# OpenProfileServer API Specification (ALPHA)
 
 ## 1. Overview
 
@@ -8,14 +8,14 @@ All endpoints accepting a profile or organization identifier support two formats
 - **UUID**: `@{guid}` (e.g., `/api/profiles/@550e8400-e29b-41d4-a716-446655440000`)
 
 ### 1.2 Status & Visibility Logic
-The API response and Static Generator behavior depend on the `AccountStatus`:
+The API response and Static Generator behavior depend on the `AccountStatus`.
 
-| Status | API Response | Static Generator | Write Access | Social Actions |
+| Status | API Response | Static Generator | Account Deletion | Social Actions |
 | :--- | :--- | :--- | :--- | :--- |
 | **Active** | Full Data | Full Generation | ✅ Allowed | ✅ Allowed |
-| **Suspended** | Restricted (Basic Info Only) | Restricted (No sub-resources) | ✅ Allowed | ❌ Forbidden |
-| **Banned** | Banned (Status Only) | Banned (Status Only) | ❌ **Locked** | ❌ Forbidden |
-| **PendingDeletion** | 404 / Error | Skipped | N/A (Must Restore) | ❌ Forbidden |
+| **Suspended** | Restricted (Basic Info Only) | Restricted (No sub-resources) | ✅ **Allowed** | ❌ Forbidden |
+| **Banned** | Banned (Status Only) | Banned (Status Only) | ❌ **Forbidden (Locked)** | ❌ Forbidden |
+| **PendingDeletion**| 404 / Error | Skipped | N/A (Must Restore) | ❌ Forbidden |
 
 ### 1.3 Update Semantics
 - **POST**: Full Update (Replace all fields).
@@ -31,16 +31,23 @@ The API response and Static Generator behavior depend on the `AccountStatus`:
 
 ---
 
-## 3. Authentication (Dynamic)
+## 3. Business Logic Details (Block & Follow)
 
-| Method | Endpoint | Description | Auth |
-| :--- | :--- | :--- | :--- |
-| **POST** | `/api/auth/login` | Login with Email/Username & Password. | None |
-| **POST** | `/api/auth/register` | Register a new personal account. | None |
-| **POST** | `/api/auth/refresh` | Refresh Access Token. | None |
-| **POST** | `/api/auth/logout` | Revoke Refresh Token. | Bearer |
-| **POST** | `/api/auth/password/forgot` | Request password reset email. | None |
-| **POST** | `/api/auth/password/reset` | Reset password with code. | None |
+### 3.1 Block Priority
+When User A attempts to Follow User B, the system checks:
+1.  Does A Block B? → **Yes**: Follow Forbidden.
+2.  Does B Block A? → **Yes**: Follow Forbidden (Return 403 or 404).
+
+### 3.2 Block Side Effects
+When User A calls `POST .../block` to block User B:
+1.  If A is Following B → **Auto Unfollow**.
+2.  If B is Following A → **Auto Remove Follower** (B no longer follows A).
+
+### 3.3 Static Generation Privacy
+- **Status Filtering**: When generating `followers.json` or `following.json`, users with `Status != Active` must be filtered out.
+- **Privacy Settings**:
+    - If `AccountSettings.ShowFollowersList == false`, the generator should produce an empty array `[]` (instead of 404) to maintain frontend consistency.
+    - The same logic applies to `following.json`.
 
 ---
 
@@ -65,7 +72,7 @@ These endpoints are used by the Static Generator.
 ### 5.1 Lifecycle
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
-| **DELETE** | `/api/me` | **Request Account Deletion** (Cooling-off). | Owner |
+| **DELETE** | `/api/me` | **Request Account Deletion** (Cooling-off). Forbidden if Banned. | Owner |
 | **POST** | `/api/me/restore` | **Restore Account** (Cancel deletion). | Owner |
 
 ### 5.2 Account & Security
@@ -78,6 +85,7 @@ These endpoints are used by the Static Generator.
 | **POST** | `/api/me/emails/{email}/verify` | Verify email with code. | Owner |
 | **DELETE** | `/api/me/emails/{email}` | Remove email. | Owner |
 | **POST** | `/api/me/password` | Change password. | Owner |
+| **GET** | `/api/me/blocks` | **List blocked users**. | Owner |
 
 ### 5.3 Settings & Profile
 | Method | Endpoint | Description | Permission |
@@ -97,14 +105,15 @@ These endpoints are used by the Static Generator.
 | **POST** | `/api/me/invitations/{id}/decline` | Decline invitation. | Owner |
 
 ### 5.5 Social Actions
+*Operator must be in **Active** status.*
+
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/api/profiles/{profile}/follow` | Follow user/org. | User (Active) |
-| **DELETE** | `/api/profiles/{profile}/follow` | Unfollow. | User (Active) |
-| **GET** | `/api/profiles/{profile}/follow` | Check follow status. | User |
-| **POST** | `/api/profiles/{profile}/block` | Block user (Auto unfollow). | User (Active) |
-| **DELETE** | `/api/profiles/{profile}/block` | Unblock user. | User (Active) |
-| **GET** | `/api/me/blocks` | List blocked users. | Owner |
+| **POST** | `/api/profiles/{profile}/follow` | **Follow** target user/org. | User (Active) |
+| **DELETE** | `/api/profiles/{profile}/follow` | **Unfollow**. | User (Active) |
+| **GET** | `/api/profiles/{profile}/follow` | Check if I am following this user. | User |
+| **POST** | `/api/profiles/{profile}/block` | **Block** target (Auto unfollow & remove follower). | User (Active) |
+| **DELETE** | `/api/profiles/{profile}/block` | **Unblock** target. | User (Active) |
 
 ### 5.6 Sub-Resources
 *Endpoints: `/api/me/{resource}` and `/api/me/{resource}/{id}`*
@@ -119,7 +128,7 @@ These endpoints are used by the Static Generator.
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs` | List my organizations. | User |
 | **POST** | `/api/orgs` | Create new organization. | User |
-| **DELETE** | `/api/orgs/{org}` | **Request Dissolution**. | **Owner** |
+| **DELETE** | `/api/orgs/{org}` | **Request Dissolution** (Forbidden if Banned). | **Owner** |
 | **POST** | `/api/orgs/{org}/restore` | **Restore Organization**. | **Owner** |
 
 ### 6.2 Settings & Profile
@@ -136,6 +145,7 @@ These endpoints are used by the Static Generator.
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs/{org}/members` | List all members. | Member+ |
+| **POST** | `/api/orgs/{org}/members` | Invite/Add member. | **Admin+** |
 | **PATCH** | `/api/orgs/{org}/members/me` | Update my visibility/title. | Member+ |
 | **DELETE** | `/api/orgs/{org}/members/me` | Leave organization. | Member+ |
 | **PATCH** | `/api/orgs/{org}/members/{user}` | Update member role. | **Owner** |
