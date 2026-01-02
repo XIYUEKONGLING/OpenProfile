@@ -20,6 +20,7 @@ public class ApplicationDbContext : DbContext
     // ==========================================
     public DbSet<Account> Accounts { get; set; }
     public DbSet<AccountFollower> AccountFollowers { get; set; }
+    public DbSet<AccountBlock> AccountBlocks { get; set; } // Added
     public DbSet<AccountEmail> AccountEmails { get; set; }
     public DbSet<AccountCredential> AccountCredentials { get; set; }
     public DbSet<AccountSecurity> AccountSecurities { get; set; }
@@ -110,6 +111,22 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(f => f.Following)
                 .WithMany(a => a.Followers)
                 .HasForeignKey(f => f.FollowingId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Account Block Config (Self-referencing Many-to-Many)
+        modelBuilder.Entity<AccountBlock>(entity =>
+        {
+            entity.HasKey(b => new { b.BlockerId, b.BlockedId });
+
+            entity.HasOne(b => b.Blocker)
+                .WithMany(a => a.BlockedUsers)
+                .HasForeignKey(b => b.BlockerId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(b => b.Blocked)
+                .WithMany(a => a.BlockedBy)
+                .HasForeignKey(b => b.BlockedId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
 

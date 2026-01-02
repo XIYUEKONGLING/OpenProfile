@@ -41,4 +41,14 @@ public class Account
     
     public virtual ICollection<AccountFollower> Followers { get; set; } = new List<AccountFollower>();
     public virtual ICollection<AccountFollower> Following { get; set; } = new List<AccountFollower>();
+    
+    /// <summary>
+    /// Users that this account has blocked.
+    /// </summary>
+    public virtual ICollection<AccountBlock> BlockedUsers { get; set; } = new List<AccountBlock>();
+    
+    /// <summary>
+    /// Users that have blocked this account.
+    /// </summary>
+    public virtual ICollection<AccountBlock> BlockedBy { get; set; } = new List<AccountBlock>();
 }
