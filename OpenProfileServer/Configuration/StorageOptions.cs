@@ -12,5 +12,6 @@ public class StorageOptions
         "image/png", 
         "image/webp", 
         "image/gif",
+        "image/svg+xml"
     ];
 }

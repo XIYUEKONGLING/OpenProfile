@@ -36,13 +36,14 @@ public class Program
         builder.Services.AddControllers()
             .AddJsonOptions(options =>
             {
-                options.JsonSerializerOptions.PropertyNamingPolicy = null; // PascalCase
+                options.JsonSerializerOptions.PropertyNamingPolicy = null; // PascalCase to match .NET standards
             });
 
         // 2. Core Infrastructure (via Extensions)
         builder.Services.AddDatabaseContext(builder.Configuration);
         builder.Services.AddServerCaching(builder.Configuration);      // FusionCache + Redis (Dynamic Options)
         builder.Services.AddServerRateLimiting(builder.Configuration); // Rate Limiting (Dynamic Policies)
+        builder.Services.AddServerCompression(builder.Configuration);  // Response Compression (Gzip/Brotli)
         
         // 3. Application Services
         builder.Services.AddServerServices();
@@ -65,17 +66,21 @@ public class Program
 
         try
         {
-            // Trigger validation for critical settings immediately upon startup
+            // Trigger validation for critical settings immediately upon startup.
+            // If configuration is invalid (e.g., missing secrets), the app will crash here intentionally.
             var dbSettings = services.GetRequiredService<IOptions<DatabaseSettings>>().Value;
             _ = services.GetRequiredService<IOptions<CacheOptions>>().Value;
             _ = services.GetRequiredService<IOptions<SecurityOptions>>().Value;
             _ = services.GetRequiredService<IOptions<RateLimitOptions>>().Value;
             _ = services.GetRequiredService<IOptions<JwtOptions>>().Value;
+            _ = services.GetRequiredService<IOptions<EmailOptions>>().Value;
+            _ = services.GetRequiredService<IOptions<CompressionOptions>>().Value;
+            _ = services.GetRequiredService<IOptions<StorageOptions>>().Value;
 
             logger.LogInformation("Starting application in {Environment} mode", app.Environment.EnvironmentName);
             logger.LogInformation("Using database provider: {Provider}", dbSettings.Type);
             
-            // Database Migration
+            // Database Migration Logic
             var context = services.GetRequiredService<ApplicationDbContext>();
             if (env.IsDevelopment())
             {
@@ -85,6 +90,7 @@ public class Program
             }
             else
             {
+                // In production, we apply migrations safely
                 var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
                 if (pendingMigrations.Any())
                 {
@@ -93,7 +99,7 @@ public class Program
                 }
             }
 
-            // Data Seeding (Root Account and Default Settings)
+            // Data Seeding (Root Account and Default System Settings)
             var seeder = services.GetRequiredService<DbSeedService>();
             await seeder.SeedAsync();
 
@@ -123,9 +129,13 @@ public class Program
                 options.RoutePrefix = "swagger";
             });
         }
+        
+        // Response Compression should run early to compress static files or API responses
+        app.UseResponseCompression();
 
         app.UseHttpsRedirection();
         
+        // Rate Limiting needs to run before expensive operations but after HTTPS
         app.UseRateLimiter();
         
         app.UseAuthorization();

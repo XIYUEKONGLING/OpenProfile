@@ -1,5 +1,7 @@
+using System.IO.Compression;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.Extensions.Options;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Configuration.RateLimiting;
@@ -16,6 +18,7 @@ public static class ServiceCollectionExtensions
 {
     /// <summary>
     /// Registers all configuration sections and their corresponding validators.
+    /// This ensures the application fails fast at startup if critical config is missing.
     /// </summary>
     public static IServiceCollection AddServerConfiguration(this IServiceCollection services, IConfiguration config)
     {
@@ -26,20 +29,25 @@ public static class ServiceCollectionExtensions
         services.Configure<StorageOptions>(config.GetSection(StorageOptions.SectionName));
         services.Configure<RateLimitOptions>(config.GetSection(RateLimitOptions.SectionName));
         services.Configure<JwtOptions>(config.GetSection(JwtOptions.SectionName));
+        services.Configure<EmailOptions>(config.GetSection(EmailOptions.SectionName));
+        services.Configure<CompressionOptions>(config.GetSection(CompressionOptions.SectionName));
 
-        // Register Validators
+        // Register Validators to enforce integrity rules
         services.AddSingleton<IValidateOptions<DatabaseSettings>, DatabaseSettingsValidator>();
         services.AddSingleton<IValidateOptions<CacheOptions>, CacheOptionsValidator>();
         services.AddSingleton<IValidateOptions<SecurityOptions>, SecurityOptionsValidator>();
         services.AddSingleton<IValidateOptions<RateLimitOptions>, RateLimitOptionsValidator>();
         services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
+        services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
+        services.AddSingleton<IValidateOptions<CompressionOptions>, CompressionOptionsValidator>();
+        services.AddSingleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>();
 
         return services;
     }
 
     /// <summary>
     /// Configures FusionCache and MemoryCache using dynamic values from CacheOptions.
-    /// No parameters are hardcoded.
+    /// We use FusionCache to handle the "Cache Stampede" problem and provide a transparent L1+L2 strategy.
     /// </summary>
     public static IServiceCollection AddServerCaching(this IServiceCollection services, IConfiguration config)
     {
@@ -47,12 +55,12 @@ public static class ServiceCollectionExtensions
 
         if (!options.IsEnabled)
         {
-            // Register a dummy cache with zero duration to satisfy DI requirements
+            // Register a dummy cache with zero duration to satisfy DI requirements without breaking logic
             services.AddFusionCache().WithDefaultEntryOptions(new FusionCacheEntryOptions { Duration = TimeSpan.Zero });
             return services;
         }
 
-        // 1. Configure Local Memory Cache
+        // 1. Configure Local Memory Cache (L1)
         services.AddMemoryCache(memOpts =>
         {
             memOpts.SizeLimit = options.SizeLimit;
@@ -62,14 +70,19 @@ public static class ServiceCollectionExtensions
         var fusionBuilder = services.AddFusionCache()
             .WithOptions(fOpts =>
             {
+                // Break the circuit if the distributed cache is down to prevent cascading failures
                 fOpts.DistributedCacheCircuitBreakerDuration = TimeSpan.FromSeconds(options.DistributedCacheCircuitBreakerSeconds);
             })
             .WithDefaultEntryOptions(new FusionCacheEntryOptions
             {
                 Duration = TimeSpan.FromMinutes(options.DefaultExpirationMinutes),
+                
+                // Enable Fail-Safe to serve stale data if the database or factory fails
                 IsFailSafeEnabled = options.EnableFailSafe,
                 FailSafeMaxDuration = TimeSpan.FromMinutes(options.FailSafeMaxDurationMinutes),
                 FailSafeThrottleDuration = TimeSpan.FromSeconds(options.FailSafeThrottleDurationSeconds),
+                
+                // Prevent long-running factory executions from hanging the request
                 FactorySoftTimeout = TimeSpan.FromMilliseconds(options.FactorySoftTimeoutMilliseconds)
             })
             .WithSerializer(new FusionCacheNewtonsoftJsonSerializer());
@@ -85,6 +98,7 @@ public static class ServiceCollectionExtensions
 
             fusionBuilder.WithRegisteredDistributedCache();
             
+            // Backplane ensures cache coherence across distributed instances
             fusionBuilder.WithStackExchangeRedisBackplane(redisOpts =>
             {
                 redisOpts.Configuration = options.RedisConnection;
@@ -95,7 +109,37 @@ public static class ServiceCollectionExtensions
     }
 
     /// <summary>
+    /// Configures HTTP Response Compression (Gzip/Brotli).
+    /// </summary>
+    public static IServiceCollection AddServerCompression(this IServiceCollection services, IConfiguration config)
+    {
+        var options = config.GetSection(CompressionOptions.SectionName).Get<CompressionOptions>() 
+                      ?? new CompressionOptions();
+
+        if (!options.Enabled) return services;
+
+        services.AddResponseCompression(opts =>
+        {
+            opts.EnableForHttps = options.EnableForHttps;
+            opts.Providers.Add<BrotliCompressionProvider>();
+            opts.Providers.Add<GzipCompressionProvider>();
+        });
+
+        // Parse compression level enum string to strict Enum
+        if (!Enum.TryParse<CompressionLevel>(options.Level, true, out var level))
+        {
+            level = CompressionLevel.Fastest;
+        }
+
+        services.Configure<BrotliCompressionProviderOptions>(opts => opts.Level = level);
+        services.Configure<GzipCompressionProviderOptions>(opts => opts.Level = level);
+
+        return services;
+    }
+
+    /// <summary>
     /// Configures Rate Limiting with dynamic policies from config and hardcoded secure defaults.
+    /// We enforce strict limits on auth endpoints to prevent brute-forcing.
     /// </summary>
     public static IServiceCollection AddServerRateLimiting(this IServiceCollection services, IConfiguration config)
     {
@@ -114,7 +158,7 @@ public static class ServiceCollectionExtensions
 
             // Register Default Security Policies if not already defined in config
             {
-                // General: 100 requests per minute (Sliding window for smoothness)
+                // General: Sliding window for smoothness
                 if (!registeredNames.Contains(RateLimitPolicies.General))
                 {
                     limiterOptions.AddSlidingWindowLimiter(RateLimitPolicies.General, opt =>
@@ -126,7 +170,7 @@ public static class ServiceCollectionExtensions
                     });
                 }
 
-                // Login: 5 attempts per minute (Strict)
+                // Login: Strict limit to prevent brute force attacks
                 if (!registeredNames.Contains(RateLimitPolicies.Login))
                 {
                     limiterOptions.AddFixedWindowLimiter(RateLimitPolicies.Login, opt =>
@@ -137,7 +181,7 @@ public static class ServiceCollectionExtensions
                     });
                 }
 
-                // Register: 3 accounts per hour
+                // Register: Limit account creation spam
                 if (!registeredNames.Contains(RateLimitPolicies.Register))
                 {
                     limiterOptions.AddFixedWindowLimiter(RateLimitPolicies.Register, opt =>
@@ -148,7 +192,7 @@ public static class ServiceCollectionExtensions
                     });
                 }
 
-                // Email: 2 actions per minute (Reset password, verification code)
+                // Email: Prevent spamming verification codes or reset links
                 if (!registeredNames.Contains(RateLimitPolicies.Email))
                 {
                     limiterOptions.AddFixedWindowLimiter(RateLimitPolicies.Email, opt =>
