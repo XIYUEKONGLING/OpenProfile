@@ -61,6 +61,7 @@ public class Program
         using var scope = app.Services.CreateScope();
         var services = scope.ServiceProvider;
         var logger = services.GetRequiredService<ILogger<Program>>();
+        var env = services.GetRequiredService<IWebHostEnvironment>();
 
         try
         {
@@ -76,11 +77,20 @@ public class Program
             
             // Database Migration
             var context = services.GetRequiredService<ApplicationDbContext>();
-            var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
-            if (pendingMigrations.Any())
+            if (env.IsDevelopment())
             {
-                logger.LogInformation("Applying pending migrations...");
-                await context.Database.MigrateAsync();
+                // For SQLite in Dev, this creates the .db file and all tables 
+                logger.LogInformation("Ensuring database is created (Development)...");
+                await context.Database.EnsureCreatedAsync();
+            }
+            else
+            {
+                var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+                if (pendingMigrations.Any())
+                {
+                    logger.LogInformation("Applying pending migrations...");
+                    await context.Database.MigrateAsync();
+                }
             }
 
             // Data Seeding (Root Account and Default Settings)
