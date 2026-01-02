@@ -68,6 +68,7 @@ public class Program
         {
             // Trigger validation for critical settings immediately upon startup.
             // If configuration is invalid (e.g., missing secrets), the app will crash here intentionally.
+            _ = services.GetRequiredService<IOptions<ApplicationOptions>>().Value;
             var dbSettings = services.GetRequiredService<IOptions<DatabaseSettings>>().Value;
             _ = services.GetRequiredService<IOptions<CacheOptions>>().Value;
             _ = services.GetRequiredService<IOptions<SecurityOptions>>().Value;

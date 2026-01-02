@@ -5,12 +5,14 @@ namespace OpenProfileServer.Models.Entities;
 
 public class SiteMetadata
 {
+    public const string DefaultSiteName = "OpenProfile";
+    
     [Key]
     public int Id { get; set; } = 1;
 
     [Required]
     [MaxLength(128)]
-    public string SiteName { get; set; } = "OpenProfile";
+    public string SiteName { get; set; } = DefaultSiteName;
 
     [MaxLength(512)]
     public string? SiteDescription { get; set; }

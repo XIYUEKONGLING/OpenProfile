@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddServerConfiguration(this IServiceCollection services, IConfiguration config)
     {
         // Bind Options Sections
+        services.Configure<ApplicationOptions>(config.GetSection(ApplicationOptions.SectionName));
         services.Configure<DatabaseSettings>(config.GetSection(DatabaseSettings.SectionName));
         services.Configure<CacheOptions>(config.GetSection(CacheOptions.SectionName));
         services.Configure<SecurityOptions>(config.GetSection(SecurityOptions.SectionName));
@@ -33,6 +34,7 @@ public static class ServiceCollectionExtensions
         services.Configure<CompressionOptions>(config.GetSection(CompressionOptions.SectionName));
 
         // Register Validators to enforce integrity rules
+        services.AddSingleton<IValidateOptions<ApplicationOptions>, ApplicationOptionsValidator>();
         services.AddSingleton<IValidateOptions<DatabaseSettings>, DatabaseSettingsValidator>();
         services.AddSingleton<IValidateOptions<CacheOptions>, CacheOptionsValidator>();
         services.AddSingleton<IValidateOptions<SecurityOptions>, SecurityOptionsValidator>();
@@ -224,6 +226,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddServerServices(this IServiceCollection services)
     {
         services.AddScoped<ISystemSettingService, SystemSettingService>();
+        services.AddScoped<ISiteMetadataService, SiteMetadataService>(); 
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<DbSeedService>();
         
