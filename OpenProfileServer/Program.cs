@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Data;
 using OpenProfileServer.Extensions;
+using OpenProfileServer.Services;
 
 namespace OpenProfileServer;
 
@@ -42,12 +43,15 @@ public class Program
         builder.Services.AddDatabaseContext(builder.Configuration);
         builder.Services.AddServerCaching(builder.Configuration);      // FusionCache + Redis (Dynamic Options)
         builder.Services.AddServerRateLimiting(builder.Configuration); // Rate Limiting (Dynamic Policies)
+        
+        // 3. Application Services
+        builder.Services.AddServerServices();
 
-        // 3. Health Checks
+        // 4. Health Checks
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>(name: "database");
 
-        // 4. OpenAPI / Swagger
+        // 5. OpenAPI / Swagger
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi();
     }
@@ -65,6 +69,7 @@ public class Program
             _ = services.GetRequiredService<IOptions<CacheOptions>>().Value;
             _ = services.GetRequiredService<IOptions<SecurityOptions>>().Value;
             _ = services.GetRequiredService<IOptions<RateLimitOptions>>().Value;
+            _ = services.GetRequiredService<IOptions<JwtOptions>>().Value;
 
             logger.LogInformation("Starting application in {Environment} mode", app.Environment.EnvironmentName);
             logger.LogInformation("Using database provider: {Provider}", dbSettings.Type);
@@ -78,7 +83,11 @@ public class Program
                 await context.Database.MigrateAsync();
             }
 
-            logger.LogInformation("Database initialization completed successfully.");
+            // Data Seeding (Root Account and Default Settings)
+            var seeder = services.GetRequiredService<DbSeedService>();
+            await seeder.SeedAsync();
+
+            logger.LogInformation("Database initialization and seeding completed successfully.");
         }
         catch (OptionsValidationException ex)
         {

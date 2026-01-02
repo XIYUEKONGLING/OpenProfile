@@ -4,7 +4,9 @@ using Microsoft.Extensions.Options;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Configuration.RateLimiting;
 using OpenProfileServer.Constants;
+using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Common;
+using OpenProfileServer.Services;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Serialization.NewtonsoftJson;
 
@@ -23,12 +25,14 @@ public static class ServiceCollectionExtensions
         services.Configure<SecurityOptions>(config.GetSection(SecurityOptions.SectionName));
         services.Configure<StorageOptions>(config.GetSection(StorageOptions.SectionName));
         services.Configure<RateLimitOptions>(config.GetSection(RateLimitOptions.SectionName));
+        services.Configure<JwtOptions>(config.GetSection(JwtOptions.SectionName));
 
         // Register Validators
         services.AddSingleton<IValidateOptions<DatabaseSettings>, DatabaseSettingsValidator>();
         services.AddSingleton<IValidateOptions<CacheOptions>, CacheOptionsValidator>();
         services.AddSingleton<IValidateOptions<SecurityOptions>, SecurityOptionsValidator>();
         services.AddSingleton<IValidateOptions<RateLimitOptions>, RateLimitOptionsValidator>();
+        services.AddSingleton<IValidateOptions<JwtOptions>, JwtOptionsValidator>();
 
         return services;
     }
@@ -109,7 +113,6 @@ public static class ServiceCollectionExtensions
             }
 
             // Register Default Security Policies if not already defined in config
-
             {
                 // General: 100 requests per minute (Sliding window for smoothness)
                 if (!registeredNames.Contains(RateLimitPolicies.General))
@@ -168,6 +171,18 @@ public static class ServiceCollectionExtensions
             };
         });
 
+        return services;
+    }
+
+    /// <summary>
+    /// Registers application business services.
+    /// </summary>
+    public static IServiceCollection AddServerServices(this IServiceCollection services)
+    {
+        services.AddScoped<ISystemSettingService, SystemSettingService>();
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<DbSeedService>();
+        
         return services;
     }
 
