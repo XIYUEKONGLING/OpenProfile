@@ -19,9 +19,7 @@ public class Account
     [MaxLength(64)]
     public string AccountName { get; set; } = string.Empty;
 
-    [Required] 
-    [MaxLength(128)]
-    public string Email { get; set; } = string.Empty;
+    public virtual ICollection<AccountEmail> Emails { get; set; } = new List<AccountEmail>();
 
     public AccountType Type { get; set; }
     public AccountRole Role { get; set; } = AccountRole.User;
@@ -35,5 +33,4 @@ public class Account
     public virtual AccountCredential? Credential { get; set; }
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
-    public virtual ICollection<OrganizationMember> Memberships { get; set; } = new List<OrganizationMember>();
-}
+    public virtual ICollection<OrganizationMember> Memberships { get; set; } = new List<OrganizationMember>();}

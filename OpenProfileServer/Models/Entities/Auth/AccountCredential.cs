@@ -23,6 +23,17 @@ public class AccountCredential
     [MaxLength(256)]
     public string PasswordSalt { get; set; } = string.Empty;
 
+    
+    public bool IsTwoFactorEnabled { get; set; } = false;
+    
+    [MaxLength(128)]
+    public string? TotpSecret { get; set; }
+    
+    /// <summary>
+    /// JSON array or hashed string of backup codes.
+    /// </summary>
+    public string? BackupCodes { get; set; }
+    
     /// <summary>
     /// For "Sign out from all devices" functionality.
     /// </summary>
