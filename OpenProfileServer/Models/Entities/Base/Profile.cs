@@ -56,6 +56,6 @@ public abstract class Profile
     public virtual ICollection<Project> Projects { get; set; } = new List<Project>();
     public virtual ICollection<GalleryItem> Gallery { get; set; } = new List<GalleryItem>();
     
-    
     public virtual ICollection<SponsorshipItem> SponsorshipItems { get; set; } = new List<SponsorshipItem>();
+    public virtual ICollection<Certificate> Certificates { get; set; } = new List<Certificate>();
 }

@@ -24,6 +24,11 @@ public class SponsorshipItem
     public string? Url { get; set; }
 
     /// <summary>
+    /// Optional icon override for the platform.
+    /// </summary>
+    public Asset Icon { get; set; } = new();
+    
+    /// <summary>
     /// Optional QR code image for direct payments.
     /// </summary>
     public Asset QrCode { get; set; } = new();
