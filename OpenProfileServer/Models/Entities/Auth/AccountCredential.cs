@@ -32,7 +32,7 @@ public class AccountCredential
     /// <summary>
     /// JSON array or hashed string of backup codes.
     /// </summary>
-    public string? BackupCodes { get; set; }
+    public List<string> BackupCodes { get; set; } = new();
     
     /// <summary>
     /// For "Sign out from all devices" functionality.

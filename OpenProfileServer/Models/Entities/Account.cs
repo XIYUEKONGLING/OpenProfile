@@ -23,6 +23,7 @@ public class Account
 
     public AccountType Type { get; set; }
     public AccountRole Role { get; set; } = AccountRole.User;
+    public AccountStatus Status { get; set; } = AccountStatus.Active;
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastLogin { get; set; } = DateTime.UtcNow;
