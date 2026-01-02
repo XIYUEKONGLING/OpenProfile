@@ -4,6 +4,7 @@ using Microsoft.Extensions.Options;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Configuration.RateLimiting;
 using OpenProfileServer.Constants;
+using OpenProfileServer.Models.DTOs.Common;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Serialization.NewtonsoftJson;
 
@@ -162,10 +163,8 @@ public static class ServiceCollectionExtensions
                 context.HttpContext.Response.StatusCode = StatusCodes.Status429TooManyRequests;
                 context.HttpContext.Response.ContentType = "application/json";
                 
-                await context.HttpContext.Response.WriteAsJsonAsync(new 
-                { 
-                    Message = "Too many requests. Please try again later." 
-                }, token);
+                await context.HttpContext.Response.WriteAsJsonAsync(
+                    new MessageResponse("Too many requests. Please try again later." ), token);
             };
         });
 
