@@ -42,7 +42,6 @@
       <Folder Include="Configuration\" />
       <Folder Include="Constants\" />
       <Folder Include="Controllers\" />
-      <Folder Include="Data\" />
       <Folder Include="Entities\" />
       <Folder Include="Extensions\" />
       <Folder Include="Infrastructure\" />
