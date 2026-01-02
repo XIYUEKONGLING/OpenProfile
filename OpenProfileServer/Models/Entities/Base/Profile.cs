@@ -33,6 +33,12 @@ public abstract class Profile
 
     [MaxLength(128)]
     public string? Location { get; set; }
+    
+    /// <summary>
+    /// IANA Time Zone identifier (e.g., "Asia/Shanghai", "America/New_York").
+    /// </summary>
+    [MaxLength(64)]
+    public string? TimeZone { get; set; }
 
     [MaxLength(256)]
     public string? Website { get; set; }
@@ -49,4 +55,7 @@ public abstract class Profile
     
     public virtual ICollection<Project> Projects { get; set; } = new List<Project>();
     public virtual ICollection<GalleryItem> Gallery { get; set; } = new List<GalleryItem>();
+    
+    
+    public virtual ICollection<SponsorshipItem> SponsorshipItems { get; set; } = new List<SponsorshipItem>();
 }

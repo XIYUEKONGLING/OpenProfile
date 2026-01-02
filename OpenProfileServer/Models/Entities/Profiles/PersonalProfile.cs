@@ -15,6 +15,12 @@ public class PersonalProfile : Profile
     
     [MaxLength(128)]
     public string? JobTitle { get; set; }
+    
+    [MaxLength(128)]
+    public string? CurrentCompany { get; set; }
+    
+    [MaxLength(128)]
+    public string? CurrentSchool { get; set; }
 
     // Collections specific to humans
     public virtual ICollection<WorkExperience> WorkExperiences { get; set; } = new List<WorkExperience>();
