@@ -2,6 +2,7 @@ using System.IO.Compression;
 using System.Text;
 using System.Threading.RateLimiting;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
 using Microsoft.EntityFrameworkCore;
@@ -14,6 +15,7 @@ using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Services;
+using StackExchange.Redis;
 using ZiggyCreatures.Caching.Fusion;
 using ZiggyCreatures.Caching.Fusion.Serialization.NewtonsoftJson;
 
@@ -48,6 +50,34 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
         services.AddSingleton<IValidateOptions<CompressionOptions>, CompressionOptionsValidator>();
         services.AddSingleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Configures Data Protection for token security. 
+    /// Supports both standalone (File System) and distributed (Redis) deployments.
+    /// </summary>
+    public static IServiceCollection AddServerDataProtection(this IServiceCollection services, IConfiguration config)
+    {
+        var options = config.GetSection(CacheOptions.SectionName).Get<CacheOptions>() ?? new CacheOptions();
+
+        // 1. Initialize Data Protection builder
+        var dpBuilder = services.AddDataProtection()
+            .SetApplicationName(ApplicationInformation.ServerName); // Ensures all instances share the same key scope
+
+        // 2. Configure persistence based on deployment mode
+        if (options.UseRedis && !string.IsNullOrWhiteSpace(options.RedisConnection))
+        {
+            // Distributed mode: Persist keys to Redis cluster
+            var redis = ConnectionMultiplexer.Connect(options.RedisConnection);
+            dpBuilder.PersistKeysToStackExchangeRedis(redis, $"{options.InstancePrefix}DataProtectionKeys");
+        }
+        else
+        {
+            // Standalone mode: Keys are persisted to the default local path
+            // On Linux: ~/.aspnet/DataProtection-Keys
+        }
 
         return services;
     }
@@ -275,6 +305,9 @@ public static class ServiceCollectionExtensions
         }
     }
 
+    /// <summary>
+    /// Configures JWT Authentication and SecurityStamp real-time validation.
+    /// </summary>
     public static IServiceCollection AddServerAuthentication(this IServiceCollection services, IConfiguration config)
     {
         var securityOptions = config.GetSection(SecurityOptions.SectionName).Get<SecurityOptions>() 
@@ -309,10 +342,8 @@ public static class ServiceCollectionExtensions
             {
                 OnTokenValidated = async context =>
                 {
-                    // 1. Resolve DB Context from request services
                     var dbContext = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
                     
-                    // 2. Extract Claims
                     var userIdClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
                     var stampClaim = context.Principal?.FindFirst("SecurityStamp");
 
@@ -322,8 +353,6 @@ public static class ServiceCollectionExtensions
                         return;
                     }
 
-                    // 3. Compare with Database SecurityStamp
-                    // Note: In high-concurrency environments, consider using FusionCache to store this stamp.
                     var currentStamp = await dbContext.AccountCredentials
                         .AsNoTracking()
                         .Where(c => c.AccountId == userId)
@@ -340,5 +369,4 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
-
 }
