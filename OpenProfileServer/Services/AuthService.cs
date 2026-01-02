@@ -7,6 +7,7 @@ using OpenProfileServer.Models.DTOs.Auth;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.Entities;
 using OpenProfileServer.Models.Entities.Auth;
+using OpenProfileServer.Models.Enums;
 using OpenProfileServer.Utilities;
 
 namespace OpenProfileServer.Services;
@@ -34,12 +35,28 @@ public class AuthService : IAuthService
             .Include(a => a.Emails)
             .FirstOrDefaultAsync(a => a.AccountName == dto.Login || a.Emails.Any(e => e.Email == dto.Login && e.IsPrimary));
 
+        // 1. Basic Existence and Credential Check
         if (account?.Credential == null) return ApiResponse<TokenResponseDto>.Failure(invalidMessage);
 
         if (!CryptographyProvider.Verify(dto.Password, account.Credential.PasswordHash, account.Credential.PasswordSalt))
         {
             return ApiResponse<TokenResponseDto>.Failure(invalidMessage);
         }
+
+        // 2. Account Type Restriction
+        if (account.Type == AccountType.Organization || account.Type == AccountType.Application || account.Type == AccountType.System)
+        {
+            return ApiResponse<TokenResponseDto>.Failure("Direct login is not supported for this account type.");
+        }
+
+        // 3. Status Logic Check
+        if (account.Status == AccountStatus.Banned)
+        {
+            return ApiResponse<TokenResponseDto>.Failure("This account has been permanently banned and locked.");
+        }
+        
+        // Note: Suspended and PendingDeletion accounts ARE allowed to login to perform 
+        // self-management or recovery (Restore) actions.
 
         return await GenerateTokenResponseAsync(account, deviceInfo);
     }
@@ -56,7 +73,12 @@ public class AuthService : IAuthService
             return ApiResponse<TokenResponseDto>.Failure("Invalid or expired refresh token.");
         }
 
-        // Clean up the used token
+        // Re-validate status on refresh to immediately block banned users
+        if (tokenEntry.Account.Status == AccountStatus.Banned)
+        {
+            return ApiResponse<TokenResponseDto>.Failure("Account access has been revoked.");
+        }
+
         _context.RefreshTokens.Remove(tokenEntry);
         
         return await GenerateTokenResponseAsync(tokenEntry.Account, tokenEntry.DeviceInfo);
