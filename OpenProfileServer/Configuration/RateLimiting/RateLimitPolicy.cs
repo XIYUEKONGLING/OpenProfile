@@ -1,13 +1,5 @@
 namespace OpenProfileServer.Configuration.RateLimiting;
 
-public enum PolicyType
-{
-    FixedWindow,
-    SlidingWindow,
-    TokenBucket,
-    Concurrency
-}
-
 public class RateLimitPolicy
 {
     public string Name { get; set; } = string.Empty;
