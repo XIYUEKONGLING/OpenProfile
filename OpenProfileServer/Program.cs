@@ -119,6 +119,8 @@ public class Program
 
     private static void ConfigureMiddleware(WebApplication app)
     {
+        var compressionOptions = app.Services.GetRequiredService<IOptions<CompressionOptions>>().Value;
+        
         if (app.Environment.IsDevelopment())
         {
             app.MapOpenApi("/openapi/api.json");
@@ -131,7 +133,10 @@ public class Program
         }
         
         // Response Compression should run early to compress static files or API responses
-        app.UseResponseCompression();
+        if (compressionOptions.Enabled)
+        {
+            app.UseResponseCompression();
+        }
 
         app.UseHttpsRedirection();
         
