@@ -1,4 +1,3 @@
-using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Core;
 using OpenProfileServer.Models.Enums;
 
