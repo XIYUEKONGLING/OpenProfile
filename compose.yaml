@@ -5,3 +5,9 @@
       context: .
       dockerfile: OpenProfileServer/Dockerfile
 
+  openprofileserver.generator:
+    image: openprofileserver.generator
+    build:
+      context: .
+      dockerfile: OpenProfileServer.Generator/Dockerfile
+
