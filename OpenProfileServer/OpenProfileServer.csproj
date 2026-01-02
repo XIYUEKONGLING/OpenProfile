@@ -41,7 +41,8 @@
     <ItemGroup>
       <Folder Include="Configuration\" />
       <Folder Include="Constants\" />
-      <Folder Include="Controllers\" />
+      <Folder Include="Controllers\Admin\" />
+      <Folder Include="Controllers\User\" />
       <Folder Include="Entities\" />
       <Folder Include="Extensions\" />
       <Folder Include="Infrastructure\" />
