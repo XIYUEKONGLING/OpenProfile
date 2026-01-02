@@ -9,4 +9,10 @@ public class JwtOptions
     
     public int AccessTokenExpirationMinutes { get; set; } = 10;
     public int RefreshTokenExpirationDays { get; set; } = 7;
+    
+    /// <summary>
+    /// Whether the Metadata address or authority must use HTTPS.
+    /// Should be true in production.
+    /// </summary>
+    public bool RequireHttpsMetadata { get; set; } = true;
 }

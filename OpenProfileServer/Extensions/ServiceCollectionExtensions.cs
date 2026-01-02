@@ -1,11 +1,16 @@
 using System.IO.Compression;
+using System.Text;
 using System.Threading.RateLimiting;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.ResponseCompression;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Configuration.RateLimiting;
 using OpenProfileServer.Constants;
+using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Services;
@@ -269,4 +274,71 @@ public static class ServiceCollectionExtensions
                 break;
         }
     }
+
+    public static IServiceCollection AddServerAuthentication(this IServiceCollection services, IConfiguration config)
+    {
+        var securityOptions = config.GetSection(SecurityOptions.SectionName).Get<SecurityOptions>() 
+                              ?? throw new InvalidOperationException("Security options are missing.");
+        var jwtOptions = config.GetSection(JwtOptions.SectionName).Get<JwtOptions>() 
+                         ?? new JwtOptions();
+
+        var key = Encoding.ASCII.GetBytes(securityOptions.ApplicationSecret);
+
+        services.AddAuthentication(options =>
+        {
+            options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+            options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+        })
+        .AddJwtBearer(options =>
+        {
+            options.RequireHttpsMetadata = jwtOptions.RequireHttpsMetadata; 
+            options.SaveToken = true;
+            options.TokenValidationParameters = new TokenValidationParameters
+            {
+                ValidateIssuerSigningKey = true,
+                IssuerSigningKey = new SymmetricSecurityKey(key),
+                ValidateIssuer = true,
+                ValidIssuer = jwtOptions.Issuer,
+                ValidateAudience = true,
+                ValidAudience = jwtOptions.Audience,
+                ValidateLifetime = true,
+                ClockSkew = TimeSpan.Zero
+            };
+
+            options.Events = new JwtBearerEvents
+            {
+                OnTokenValidated = async context =>
+                {
+                    // 1. Resolve DB Context from request services
+                    var dbContext = context.HttpContext.RequestServices.GetRequiredService<ApplicationDbContext>();
+                    
+                    // 2. Extract Claims
+                    var userIdClaim = context.Principal?.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+                    var stampClaim = context.Principal?.FindFirst("SecurityStamp");
+
+                    if (userIdClaim == null || stampClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+                    {
+                        context.Fail("Invalid token claims.");
+                        return;
+                    }
+
+                    // 3. Compare with Database SecurityStamp
+                    // Note: In high-concurrency environments, consider using FusionCache to store this stamp.
+                    var currentStamp = await dbContext.AccountCredentials
+                        .AsNoTracking()
+                        .Where(c => c.AccountId == userId)
+                        .Select(c => c.SecurityStamp)
+                        .FirstOrDefaultAsync();
+
+                    if (currentStamp == null || currentStamp != stampClaim.Value)
+                    {
+                        context.Fail("This token has been invalidated due to a security stamp mismatch.");
+                    }
+                }
+            };
+        });
+
+        return services;
+    }
+
 }

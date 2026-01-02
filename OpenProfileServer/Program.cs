@@ -46,21 +46,24 @@ public class Program
                 options.JsonSerializerOptions.PropertyNamingPolicy = null; // PascalCase to match .NET standards
                 // options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
             });
+        
+        // 3. Authentication & Authorization Registration
+        builder.Services.AddServerAuthentication(builder.Configuration);
 
-        // 3. Core Infrastructure (via Extensions)
+        // 4. Core Infrastructure (via Extensions)
         builder.Services.AddDatabaseContext(builder.Configuration);
         builder.Services.AddServerCaching(builder.Configuration);      // FusionCache + Redis (Dynamic Options)
         builder.Services.AddServerRateLimiting(builder.Configuration); // Rate Limiting (Dynamic Policies)
         builder.Services.AddServerCompression(builder.Configuration);  // Response Compression (Gzip/Brotli)
         
-        // 4. Application Services
+        // 5. Application Services
         builder.Services.AddServerServices();
 
-        // 5. Health Checks
+        // 6. Health Checks
         builder.Services.AddHealthChecks()
             .AddDbContextCheck<ApplicationDbContext>(name: "database");
 
-        // 6. OpenAPI / Swagger
+        // 7. OpenAPI / Swagger
         builder.Services.AddEndpointsApiExplorer();
         builder.Services.AddOpenApi();
     }
