@@ -30,8 +30,8 @@ public class Account
     
     public virtual Profile? Profile { get; set; }
     public virtual AccountSettings? Settings { get; set; }
-
     public virtual AccountCredential? Credential { get; set; }
+    public virtual AccountSecurity? Security { get; set; }
     public virtual ICollection<RefreshToken> RefreshTokens { get; set; } = new List<RefreshToken>();
 
     public virtual ICollection<OrganizationMember> Memberships { get; set; } = new List<OrganizationMember>();}
