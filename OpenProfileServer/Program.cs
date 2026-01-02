@@ -44,7 +44,7 @@ public class Program
             .AddJsonOptions(options =>
             {
                 options.JsonSerializerOptions.PropertyNamingPolicy = null; // PascalCase to match .NET standards
-                // options.JsonSerializerOptions.PropertyNameCaseInsensitive = false;
+                options.JsonSerializerOptions.PropertyNameCaseInsensitive = true;
             });
         
         // 3. Authentication & Authorization Registration
