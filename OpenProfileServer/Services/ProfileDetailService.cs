@@ -4,6 +4,7 @@ using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Core;
+using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Profile.Details;
 using OpenProfileServer.Models.Entities.Details;
 using OpenProfileServer.Models.Entities.Profiles;
@@ -372,4 +373,40 @@ public class ProfileDetailService : IProfileDetailService
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Social link deleted."));
     }
+    
+    public async Task<ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>> GetPublicMembershipsAsync(Guid profileId)
+    {
+        var cacheKey = CacheKeys.ProfileMemberships(profileId);
+
+        var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            return await _context.OrganizationMembers
+                .AsNoTracking()
+                .Where(m => m.AccountId == profileId)
+                .Where(m => m.Visibility == Visibility.Public) // Only where user set themselves as Public
+                .Include(m => m.Organization)
+                .ThenInclude(o => o.Account) // To check AccountName and Status
+                .Where(m => m.Organization.Account.Status == AccountStatus.Active) // Only show active Orgs
+                .OrderByDescending(m => m.JoinedAt)
+                .Select(m => new PublicOrganizationMembershipDto
+                {
+                    OrganizationId = m.OrganizationId,
+                    AccountName = m.Organization.Account.AccountName,
+                    DisplayName = m.Organization.DisplayName,
+                    Avatar = new AssetDto 
+                    { 
+                        Type = m.Organization.Avatar.Type, 
+                        Value = m.Organization.Avatar.Value,
+                        Tag = m.Organization.Avatar.Tag
+                    },
+                    Role = m.Role,
+                    Title = m.Title,
+                    JoinedAt = m.JoinedAt
+                })
+                .ToListAsync();
+        }, tags: [cacheKey]);
+
+        return ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>.Success(list ?? new List<PublicOrganizationMembershipDto>());
+    }
+
 }

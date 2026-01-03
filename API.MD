@@ -91,6 +91,7 @@ These endpoints are used by the Static Generator.
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/profiles/{profile}` | Get profile info. Content depends on Status. | `api/profiles/{profile}.json` |
 | **GET** | `/api/profiles/{profile}/{resource}` | Get sub-resources (projects, gallery, etc.). | `api/profiles/{profile}/{resource}.json` |
+| **GET** | `/api/profiles/{profile}/memberships` | Get public organizations this user belongs to. | `api/profiles/{profile}/memberships.json` |
 | **GET** | `/api/profiles/{profile}/members` | Get **public** members (Org only). | `api/profiles/{profile}/members.json` |
 | **GET** | `/api/profiles/{profile}/followers` | Get followers list. | `api/profiles/{profile}/followers.json` |
 | **GET** | `/api/profiles/{profile}/following` | Get following list. | `api/profiles/{profile}/following.json` |

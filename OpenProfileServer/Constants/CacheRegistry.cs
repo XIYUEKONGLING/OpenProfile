@@ -49,6 +49,8 @@ public static class CacheKeys
     public static string ProfileProjects(Guid profileId) => $"Profile:Projects:{profileId}";
     public static string ProfileSocials(Guid profileId) => $"Profile:Socials:{profileId}";
     
+    public static string ProfileMemberships(Guid profileId) => $"Profile:Memberships:{profileId}";
+    
     // ==========================================
     // Organizations
     // ==========================================

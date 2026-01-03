@@ -119,4 +119,18 @@ public class ProfileController : ControllerBase
         
         return Ok(await _detailService.GetSocialsAsync(id.Value));
     }
+    
+    /// <summary>
+    /// GET /api/profiles/{profile}/memberships
+    /// Get organizations this user has joined publicly.
+    /// </summary>
+    [HttpGet("{profile}/memberships")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>>> GetMemberships(string profile)
+    {
+        var id = await _profileService.ResolveIdAsync(profile);
+        if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
+
+        return Ok(await _detailService.GetPublicMembershipsAsync(id.Value));
+    }
+
 }
