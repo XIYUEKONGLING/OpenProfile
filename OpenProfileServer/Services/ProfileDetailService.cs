@@ -11,6 +11,7 @@ using OpenProfileServer.Models.Entities.Details;
 using OpenProfileServer.Models.Entities.Profiles;
 using OpenProfileServer.Models.Enums;
 using OpenProfileServer.Models.ValueObjects;
+using OpenProfileServer.Utilities;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace OpenProfileServer.Services;
@@ -19,11 +20,20 @@ public class ProfileDetailService : IProfileDetailService
 {
     private readonly ApplicationDbContext _context;
     private readonly IFusionCache _cache;
+    private readonly ISystemSettingService _settingService;
 
-    public ProfileDetailService(ApplicationDbContext context, IFusionCache cache)
+    public ProfileDetailService(ApplicationDbContext context, IFusionCache cache, ISystemSettingService settingService)
     {
         _context = context;
         _cache = cache;
+        _settingService = settingService;
+    }
+
+    private async Task<string?> ValidateAssetAsync(AssetDto? asset, string limitKey, int defaultLimit)
+    {
+        int limit = await _settingService.GetIntAsync(limitKey, defaultLimit);
+        var result = AssetValidator.Validate(asset, limit);
+        return result.Valid ? null : result.Error;
     }
     
     public async Task<ApiResponse<IEnumerable<WorkExperienceDto>>> GetWorkAsync(Guid profileId, bool publicOnly = false)
@@ -54,6 +64,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> AddWorkAsync(Guid accountId, UpdateWorkExperienceRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Logo, SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var isPersonal = await _context.PersonalProfiles.AnyAsync(p => p.Id == accountId);
         if (!isPersonal) return ApiResponse<MessageResponse>.Failure("Operation valid only for personal accounts.");
 
@@ -77,6 +90,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> UpdateWorkAsync(Guid accountId, Guid workId, UpdateWorkExperienceRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Logo, SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var entity = await _context.WorkExperiences.FirstOrDefaultAsync(w => w.Id == workId && w.PersonalProfileId == accountId);
         if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
 
@@ -137,6 +153,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> AddEducationAsync(Guid accountId, UpdateEducationExperienceRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Logo, SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var isPersonal = await _context.PersonalProfiles.AnyAsync(p => p.Id == accountId);
         if (!isPersonal) return ApiResponse<MessageResponse>.Failure("Operation valid only for personal accounts.");
 
@@ -160,6 +179,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> UpdateEducationAsync(Guid accountId, Guid educationId, UpdateEducationExperienceRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Logo, SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var entity = await _context.EducationExperiences.FirstOrDefaultAsync(e => e.Id == educationId && e.PersonalProfileId == accountId);
         if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
 
@@ -226,6 +248,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> AddProjectAsync(Guid accountId, UpdateProjectRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Logo, SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var entity = new Project
         {
             ProfileId = accountId,
@@ -247,6 +272,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> UpdateProjectAsync(Guid accountId, Guid projectId, UpdateProjectRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Logo, SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var entity = await _context.Projects.FirstOrDefaultAsync(p => p.Id == projectId && p.ProfileId == accountId);
         if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
 
@@ -304,6 +332,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> AddSocialAsync(Guid accountId, UpdateSocialLinkRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Icon, SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         if (string.IsNullOrWhiteSpace(dto.Platform) || string.IsNullOrWhiteSpace(dto.Url))
             return ApiResponse<MessageResponse>.Failure("Platform and URL are required.");
 
@@ -324,6 +355,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> UpdateSocialAsync(Guid accountId, Guid linkId, UpdateSocialLinkRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Icon, SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var entity = await _context.SocialLinks.FirstOrDefaultAsync(s => s.Id == linkId && s.ProfileId == accountId);
         if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
 
@@ -549,6 +583,14 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> AddSponsorshipAsync(Guid accountId, UpdateSponsorshipItemRequestDto dto)
     {
+        int limit = await _settingService.GetIntAsync(SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        
+        var vIcon = AssetValidator.Validate(dto.Icon, limit);
+        if (!vIcon.Valid) return ApiResponse<MessageResponse>.Failure(vIcon.Error!);
+
+        var vQr = AssetValidator.Validate(dto.QrCode, limit);
+        if (!vQr.Valid) return ApiResponse<MessageResponse>.Failure(vQr.Error!);
+
         var entity = new SponsorshipItem
         {
             ProfileId = accountId,
@@ -569,6 +611,14 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> UpdateSponsorshipAsync(Guid accountId, Guid itemId, UpdateSponsorshipItemRequestDto dto)
     {
+        int limit = await _settingService.GetIntAsync(SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        
+        var vIcon = AssetValidator.Validate(dto.Icon, limit);
+        if (!vIcon.Valid) return ApiResponse<MessageResponse>.Failure(vIcon.Error!);
+
+        var vQr = AssetValidator.Validate(dto.QrCode, limit);
+        if (!vQr.Valid) return ApiResponse<MessageResponse>.Failure(vQr.Error!);
+
         var entity = await _context.SponsorshipItems.FirstOrDefaultAsync(s => s.Id == itemId && s.ProfileId == accountId);
         if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
 
@@ -637,6 +687,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> AddGalleryItemAsync(Guid accountId, UpdateGalleryItemRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Image, SystemSettingKeys.MaxGalleryAssetSizeBytes, 10485760);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         if (dto.Image == null) return ApiResponse<MessageResponse>.Failure("Image is required.");
 
         var entity = new GalleryItem
@@ -658,6 +711,9 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<MessageResponse>> UpdateGalleryItemAsync(Guid accountId, Guid itemId, UpdateGalleryItemRequestDto dto)
     {
+        var assetError = await ValidateAssetAsync(dto.Image, SystemSettingKeys.MaxGalleryAssetSizeBytes, 10485760);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var entity = await _context.GalleryItems.FirstOrDefaultAsync(g => g.Id == itemId && g.ProfileId == accountId);
         if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
 

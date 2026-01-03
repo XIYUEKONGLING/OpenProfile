@@ -12,6 +12,7 @@ using OpenProfileServer.Models.Entities.Profiles;
 using OpenProfileServer.Models.Entities.Settings;
 using OpenProfileServer.Models.Enums;
 using OpenProfileServer.Models.ValueObjects;
+using OpenProfileServer.Utilities;
 using ZiggyCreatures.Caching.Fusion;
 
 namespace OpenProfileServer.Services;
@@ -21,19 +22,34 @@ public class OrganizationService : IOrganizationService
     private readonly ApplicationDbContext _context;
     private readonly IFusionCache _cache;
     private readonly INotificationService _notificationService;
+    private readonly ISystemSettingService _settingService;
     private static readonly Regex AccountNameRegex = new("^[a-zA-Z0-9_-]{3,64}$", RegexOptions.Compiled);
 
     public OrganizationService(
         ApplicationDbContext context, 
         IFusionCache cache,
-        INotificationService notificationService)
+        INotificationService notificationService,
+        ISystemSettingService settingService)
     {
         _context = context;
         _cache = cache;
         _notificationService = notificationService;
+        _settingService = settingService;
     }
 
-    // Helper
+    private async Task<string?> ValidateOrgAssetsAsync(UpdateProfileRequestDto dto)
+    {
+        int limit = await _settingService.GetIntAsync(SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        
+        var vAvatar = AssetValidator.Validate(dto.Avatar, limit);
+        if (!vAvatar.Valid) return vAvatar.Error;
+
+        var vBackground = AssetValidator.Validate(dto.Background, limit);
+        if (!vBackground.Valid) return vBackground.Error;
+
+        return null;
+    }
+
     private async Task<(OrganizationMember? Member, OrganizationSettings? Settings)> GetMemberAndSettingsAsync(Guid userId, Guid orgId)
     {
         var member = await _context.OrganizationMembers
@@ -256,6 +272,9 @@ public class OrganizationService : IOrganizationService
 
     public async Task<ApiResponse<MessageResponse>> UpdateOrgProfileAsync(Guid userId, Guid orgId, UpdateProfileRequestDto dto)
     {
+        var assetError = await ValidateOrgAssetsAsync(dto);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var member = await _context.OrganizationMembers.FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
         if (member == null || (member.Role != MemberRole.Owner && member.Role != MemberRole.Admin))
             return ApiResponse<MessageResponse>.Failure("Insufficient permissions.");
@@ -279,6 +298,9 @@ public class OrganizationService : IOrganizationService
 
     public async Task<ApiResponse<MessageResponse>> PatchOrgProfileAsync(Guid userId, Guid orgId, UpdateProfileRequestDto dto)
     {
+        var assetError = await ValidateOrgAssetsAsync(dto);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var member = await _context.OrganizationMembers.FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
         if (member == null || (member.Role != MemberRole.Owner && member.Role != MemberRole.Admin))
             return ApiResponse<MessageResponse>.Failure("Insufficient permissions.");

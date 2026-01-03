@@ -23,19 +23,35 @@ public class AccountService : IAccountService
     private readonly IAuthService _authService;
     private readonly IVerificationService _verificationService;
     private readonly ISocialService _socialService;
+    private readonly ISystemSettingService _settingService;
 
     public AccountService(
         ApplicationDbContext context, 
         IFusionCache cache, 
         IAuthService authService,
         IVerificationService verificationService,
-        ISocialService socialService)
+        ISocialService socialService,
+        ISystemSettingService settingService)
     {
         _context = context;
         _cache = cache;
         _authService = authService;
         _verificationService = verificationService;
         _socialService = socialService;
+        _settingService = settingService;
+    }
+
+    private async Task<string?> ValidateProfileAssetsAsync(UpdateProfileRequestDto dto)
+    {
+        int limit = await _settingService.GetIntAsync(SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        
+        var vAvatar = AssetValidator.Validate(dto.Avatar, limit);
+        if (!vAvatar.Valid) return vAvatar.Error;
+
+        var vBackground = AssetValidator.Validate(dto.Background, limit);
+        if (!vBackground.Valid) return vBackground.Error;
+
+        return null;
     }
 
     public async Task<ApiResponse<AccountDto>> GetMyAccountAsync(Guid accountId)
@@ -181,6 +197,9 @@ public class AccountService : IAccountService
     // POST: Full Update
     public async Task<ApiResponse<MessageResponse>> UpdateMyProfileAsync(Guid accountId, UpdateProfileRequestDto dto)
     {
+        var assetError = await ValidateProfileAssetsAsync(dto);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var profile = await _context.PersonalProfiles
             .Include(p => p.Account)
             .FirstOrDefaultAsync(p => p.Id == accountId);
@@ -203,11 +222,11 @@ public class AccountService : IAccountService
 
         profile.Avatar = dto.Avatar != null 
             ? new Asset { Type = dto.Avatar.Type, Value = dto.Avatar.Value, Tag = dto.Avatar.Tag } 
-            : new Asset(); // Reset to default
+            : new Asset(); 
         
         profile.Background = dto.Background != null 
             ? new Asset { Type = dto.Background.Type, Value = dto.Background.Value, Tag = dto.Background.Tag } 
-            : new Asset(); // Reset to default
+            : new Asset(); 
 
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.AccountProfile(accountId));
@@ -218,6 +237,9 @@ public class AccountService : IAccountService
     // PATCH: Partial Update
     public async Task<ApiResponse<MessageResponse>> PatchMyProfileAsync(Guid accountId, UpdateProfileRequestDto dto)
     {
+        var assetError = await ValidateProfileAssetsAsync(dto);
+        if (assetError != null) return ApiResponse<MessageResponse>.Failure(assetError);
+
         var profile = await _context.PersonalProfiles.FirstOrDefaultAsync(p => p.Id == accountId);
         if (profile == null) return ApiResponse<MessageResponse>.Failure("Profile not found.");
 
