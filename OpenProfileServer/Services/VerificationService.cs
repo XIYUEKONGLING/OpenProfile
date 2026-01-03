@@ -23,15 +23,18 @@ public class VerificationService : IVerificationService
         _emailService = emailService;
     }
 
-    public async Task<bool> GenerateAndSendCodeAsync(string identifier, VerificationType type, string? username = null)
+    public async Task<bool> SendCodeAsync(string email, VerificationType type, string? username = null)
     {
+        // 0. If Email Service is down/disabled, we physically cannot verify ownership.
+        // The controller should handle whether to allow bypass or fail based on config.
+        if (!_emailService.IsEnabled) return false;
+
         // 1. Generate Code
         var code = GenerateCode();
 
-        // 2. Store in DB
-        // Remove existing codes for this identifier/type to prevent spam/clutter
+        // 2. Store in DB (Cleanup old codes for same email/type)
         var existing = await _context.VerificationCodes
-            .Where(v => v.Identifier == identifier && v.Type == type)
+            .Where(v => v.Identifier == email && v.Type == type)
             .ToListAsync();
         
         if (existing.Any())
@@ -41,7 +44,7 @@ public class VerificationService : IVerificationService
 
         var entity = new VerificationCode
         {
-            Identifier = identifier,
+            Identifier = email,
             Code = code,
             Type = type,
             ExpiresAt = DateTime.UtcNow.AddMinutes(ExpirationMinutes),
@@ -51,23 +54,17 @@ public class VerificationService : IVerificationService
         _context.VerificationCodes.Add(entity);
         await _context.SaveChangesAsync();
 
-        // 3. Send Email (if enabled)
-        if (_emailService.IsEnabled)
-        {
-            // Note: In a real scenario, we might want to customize the template based on VerificationType.
-            // For now, we use the generic verification template or assume the EmailService handles it.
-            return await _emailService.SendVerificationEmailAsync(identifier, username ?? "User", code);
-        }
-
-        // If email is disabled, we still return true as the code was generated successfully.
-        // In dev mode, one might check the DB.
-        return true;
+        // 3. Send Email
+        return await _emailService.SendVerificationEmailAsync(email, username ?? "User", code);
     }
 
-    public async Task<bool> ValidateCodeAsync(string identifier, VerificationType type, string code)
+    public async Task<bool> ValidateCodeAsync(string email, VerificationType type, string code)
     {
+        // Normalize input
+        var normalizedCode = code.Trim().ToUpperInvariant();
+        
         var entity = await _context.VerificationCodes
-            .FirstOrDefaultAsync(v => v.Identifier == identifier && v.Type == type && v.Code == code);
+            .FirstOrDefaultAsync(v => v.Identifier == email && v.Type == type && v.Code == normalizedCode);
 
         if (entity == null) return false;
 

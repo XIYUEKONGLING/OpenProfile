@@ -1,5 +1,6 @@
 using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
+using OpenProfileServer.Models.Enums;
 
 namespace OpenProfileServer.Interfaces;
 
@@ -13,5 +14,5 @@ public interface INotificationService
     Task<ApiResponse<MessageResponse>> DeleteAllReadAsync(Guid userId);
     
     // Internal helper to send notification
-    Task CreateNotificationAsync(Guid recipientId, string title, string body, Models.Enums.NotificationType type, string? data = null);
+    Task CreateNotificationAsync(Guid recipientId, string title, string body, NotificationType type, string? url = null, string? data = null);
 }

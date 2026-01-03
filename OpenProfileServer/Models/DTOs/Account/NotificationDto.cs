@@ -8,6 +8,7 @@ public class NotificationDto
     public NotificationType Type { get; set; }
     public string Title { get; set; } = string.Empty;
     public string Body { get; set; } = string.Empty;
+    public string? Url { get; set; }
     public string? Data { get; set; } // JSON format string
     public bool IsRead { get; set; }
     public DateTime CreatedAt { get; set; }

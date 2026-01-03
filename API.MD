@@ -52,14 +52,23 @@ Manage site branding (Site Name, Description, Logo, etc.).
 
 ## 3. Authentication (Dynamic Only)
 
-Authentication uses JWT Access Tokens and long-lived Refresh Tokens (128-byte entropy).
+Authentication and Registration flow with mandatory email verification support.
+
+### 3.1 Flow Logic
+1.  **Check Configuration**: Call `GET /api/auth/config` to check `RegistrationRequiresEmail`.
+2.  **Request Code (If required)**: If `true`, call `POST /api/auth/send-code` with `{ email, type: 0 }`.
+3.  **Register**: Call `POST /api/auth/register` including the `code`. The account is created as **Verified** and **Logged In** atomically.
 
 | Method | Endpoint | Description | Auth Required |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/api/auth/login` | Login with AccountName/Email. Returns JWT + RefreshToken. | No |
+| **GET** | `/api/auth/config` | Get auth settings (e.g. is verification required?). | No |
+| **POST** | `/api/auth/send-code` | Send verification code to email. (Type: 0=Register, 3=VerifyEmail) | No |
+| **POST** | `/api/auth/register` | Create account. Requires `code` if configured. Returns JWT. | No |
+| **POST** | `/api/auth/login` | Login. Returns JWT + RefreshToken. | No |
 | **POST** | `/api/auth/refresh` | Exchange RefreshToken for a new JWT. | No |
 | **POST** | `/api/auth/logout` | Revoke a specific RefreshToken. | Yes |
 | **POST** | `/api/auth/logout-all` | **SecurityStamp Reset**: Revokes ALL sessions and JWTs. | Yes |
+
 
 *Note: Access Tokens are validated against the database's `SecurityStamp` on every request. A reset will result in immediate 401 Unauthorized for all existing JWTs.*
 

@@ -160,6 +160,7 @@ public class AccountController : ControllerBase
     [HttpPost("emails")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> AddEmail([FromBody] AddEmailRequestDto dto)
     {
+        // Frontend must call /api/auth/send-code with Type=VerifyEmail first.
         var result = await _accountService.AddEmailAsync(GetUserId(), dto);
         return result.Status ? Ok(result) : BadRequest(result);
     }

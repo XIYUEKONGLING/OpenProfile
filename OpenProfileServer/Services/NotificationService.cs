@@ -40,6 +40,7 @@ public class NotificationService : INotificationService
                 Type = n.Type,
                 Title = n.Title,
                 Body = n.Body,
+                Url = n.Url,
                 Data = n.Data,
                 IsRead = n.IsRead,
                 CreatedAt = n.CreatedAt
@@ -58,14 +59,10 @@ public class NotificationService : INotificationService
 
     public async Task<ApiResponse<MessageResponse>> MarkAsReadAsync(Guid userId, Guid notificationId)
     {
-        var notification = await _context.Notifications
-            .FirstOrDefaultAsync(n => n.Id == notificationId && n.RecipientId == userId);
-
+        var notification = await _context.Notifications.FirstOrDefaultAsync(n => n.Id == notificationId && n.RecipientId == userId);
         if (notification == null) return ApiResponse<MessageResponse>.Failure("Notification not found.");
-
         notification.IsRead = true;
         await _context.SaveChangesAsync();
-
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Marked as read."));
     }
 
@@ -74,33 +71,25 @@ public class NotificationService : INotificationService
         await _context.Notifications
             .Where(n => n.RecipientId == userId && !n.IsRead)
             .ExecuteUpdateAsync(s => s.SetProperty(n => n.IsRead, true));
-
-        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("All notifications marked as read."));
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("All marked as read."));
     }
+
 
     public async Task<ApiResponse<MessageResponse>> DeleteNotificationAsync(Guid userId, Guid notificationId)
     {
-        var notification = await _context.Notifications
-            .FirstOrDefaultAsync(n => n.Id == notificationId && n.RecipientId == userId);
-
+        var notification = await _context.Notifications.FirstOrDefaultAsync(n => n.Id == notificationId && n.RecipientId == userId);
         if (notification == null) return ApiResponse<MessageResponse>.Failure("Notification not found.");
-
         _context.Notifications.Remove(notification);
         await _context.SaveChangesAsync();
-
-        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Notification deleted."));
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Deleted."));
     }
-
     public async Task<ApiResponse<MessageResponse>> DeleteAllReadAsync(Guid userId)
     {
-        await _context.Notifications
-            .Where(n => n.RecipientId == userId && n.IsRead)
-            .ExecuteDeleteAsync();
-
+        await _context.Notifications.Where(n => n.RecipientId == userId && n.IsRead).ExecuteDeleteAsync();
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Read notifications cleared."));
     }
 
-    public async Task CreateNotificationAsync(Guid recipientId, string title, string body, NotificationType type, string? data = null)
+    public async Task CreateNotificationAsync(Guid recipientId, string title, string body, NotificationType type, string? url = null, string? data = null)
     {
         var notification = new Notification
         {
@@ -108,6 +97,7 @@ public class NotificationService : INotificationService
             Title = title,
             Body = body,
             Type = type,
+            Url = url,
             Data = data,
             IsRead = false,
             CreatedAt = DateTime.UtcNow

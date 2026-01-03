@@ -335,28 +335,32 @@ public class AccountService : IAccountService
 
     public async Task<ApiResponse<MessageResponse>> AddEmailAsync(Guid accountId, AddEmailRequestDto dto)
     {
-        if (await _context.AccountEmails.AnyAsync(e => e.Email == dto.Email))
+        // 1. Uniqueness check
+        if (await _context.AccountEmails.AnyAsync(e => e.Email.ToLower() == dto.Email.ToLower()))
             return ApiResponse<MessageResponse>.Failure("Email is already in use.");
 
         var account = await _context.Accounts.FindAsync(accountId);
         if (account == null) return ApiResponse<MessageResponse>.Failure("Account not found.");
 
+        // 2. Validate Code
+        var isValid = await _verificationService.ValidateCodeAsync(dto.Email, VerificationType.VerifyEmail, dto.Code);
+        if (!isValid) return ApiResponse<MessageResponse>.Failure("Invalid or expired verification code.");
+
+        // 3. Add Verified Email
         var email = new AccountEmail
         {
             AccountId = accountId,
             Email = dto.Email,
             IsPrimary = false,
-            IsVerified = false,
+            IsVerified = true, // Verified immediately
+            VerifiedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow
         };
 
         _context.AccountEmails.Add(email);
         await _context.SaveChangesAsync();
 
-        // Send verification code
-        await _verificationService.GenerateAndSendCodeAsync(dto.Email, VerificationType.VerifyEmail, account.AccountName);
-
-        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email added. Please verify it."));
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email added successfully."));
     }
 
     public async Task<ApiResponse<MessageResponse>> SetPrimaryEmailAsync(Guid accountId, string email)

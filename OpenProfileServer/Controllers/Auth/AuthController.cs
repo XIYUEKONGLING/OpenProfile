@@ -22,10 +22,33 @@ public class AuthController : ControllerBase
     {
         _authService = authService;
     }
+    
+    /// <summary>
+    /// GET /api/auth/config
+    /// Check registration requirements (e.g. is email verification required?).
+    /// </summary>
+    [HttpGet("config")]
+    public async Task<ActionResult<ApiResponse<AuthConfigDto>>> GetConfig()
+    {
+        return Ok(await _authService.GetConfigAsync());
+    }
+    
+    /// <summary>
+    /// POST /api/auth/send-code
+    /// Send a verification code to the provided email. 
+    /// Used for Registration, Password Reset, or Adding Emails.
+    /// </summary>
+    [HttpPost("send-code")]
+    [EnableRateLimiting(RateLimitPolicies.Email)]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> SendCode([FromBody] SendCodeRequestDto dto)
+    {
+        var result = await _authService.SendCodeAsync(dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
 
     /// <summary>
-    /// Registers a new personal account.
-    /// Rate limited by Register policy.
+    /// POST /api/auth/register
+    /// Register a new account. If config requires email, 'code' must be provided.
     /// </summary>
     [HttpPost("register")]
     [EnableRateLimiting(RateLimitPolicies.Register)]
@@ -33,13 +56,11 @@ public class AuthController : ControllerBase
     {
         var result = await _authService.RegisterAsync(dto);
         
-        if (!result.Status)
-        {
-            return BadRequest(result);
-        }
-
-        return Created("", result);
+        if (!result.Status) return BadRequest(result);
+        
+        return Created("", result); // 201 Created & Logged In
     }
+
 
     /// <summary>
     /// Authenticates a user and returns a set of JWT tokens.

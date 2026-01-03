@@ -1,5 +1,4 @@
 using System.ComponentModel.DataAnnotations;
-using System.ComponentModel.DataAnnotations.Schema;
 using OpenProfileServer.Models.Enums;
 
 namespace OpenProfileServer.Models.Entities;
@@ -22,8 +21,11 @@ public class Notification
     [Required]
     public string Body { get; set; } = string.Empty;
 
+    [MaxLength(1024)]
+    public string? Url { get; set; }
+
     /// <summary>
-    /// Optional JSON data attached to the notification (e.g., { "inviteId": "..." }).
+    /// Optional JSON data attached to the notification.
     /// </summary>
     public string? Data { get; set; }
 

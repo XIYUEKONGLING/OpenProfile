@@ -5,6 +5,8 @@ public static class SystemSettingKeys
     // Policies (Runtime Logic)
     public const string MaintenanceMode = "MaintenanceMode";
     public const string AllowRegistration = "AllowRegistration";
+    public const string RegistrationRequiresEmail = "RegistrationRequiresEmail"; 
+    
     public const string AllowSearchEngineIndexing = "AllowSearchEngineIndexing";
     public const string RequireEmailVerification = "RequireEmailVerification";
     

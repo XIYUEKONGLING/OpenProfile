@@ -5,12 +5,13 @@ namespace OpenProfileServer.Interfaces;
 public interface IVerificationService
 {
     /// <summary>
-    /// Generates a 9-character alphanumeric code, stores it, and attempts to send it via email.
+    /// Generates a 9-char uppercase alphanumeric code, stores it, and sends via Email.
+    /// Returns false if Email Service is disabled or sending failed.
     /// </summary>
-    Task<bool> GenerateAndSendCodeAsync(string identifier, VerificationType type, string? username = null);
+    Task<bool> SendCodeAsync(string email, VerificationType type, string? username = null);
 
     /// <summary>
-    /// Validates a code. If valid, deletes the code to prevent reuse.
+    /// Checks if the code is valid. If valid, deletes it (consume).
     /// </summary>
-    Task<bool> ValidateCodeAsync(string identifier, VerificationType type, string code);
+    Task<bool> ValidateCodeAsync(string email, VerificationType type, string code);
 }
