@@ -271,6 +271,7 @@ public static class ServiceCollectionExtensions
         
         // Profiles & Social
         services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<IProfileDetailService, ProfileDetailService>();
         services.AddScoped<ISocialService, SocialService>();
         
         // Infrastructure

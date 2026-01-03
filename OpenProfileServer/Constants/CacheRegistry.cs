@@ -39,4 +39,14 @@ public static class CacheKeys
     /// Cache key for checking if User A blocks User B.
     /// </summary>
     public static string SocialBlock(Guid blockerId, Guid blockedId) => $"Social:Block:{blockerId}:{blockedId}";
+
+    // ==========================================
+    // Profile Sub-Resources
+    // ==========================================
+
+    public static string ProfileWork(Guid profileId) => $"Profile:Work:{profileId}";
+    public static string ProfileEducation(Guid profileId) => $"Profile:Education:{profileId}";
+    public static string ProfileProjects(Guid profileId) => $"Profile:Projects:{profileId}";
+    public static string ProfileSocials(Guid profileId) => $"Profile:Socials:{profileId}";
+
 }

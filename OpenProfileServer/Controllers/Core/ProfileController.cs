@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Mvc;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Profile;
+using OpenProfileServer.Models.DTOs.Profile.Details;
 using OpenProfileServer.Models.DTOs.Social;
 
 namespace OpenProfileServer.Controllers.Core;
@@ -16,11 +17,16 @@ public class ProfileController : ControllerBase
 {
     private readonly IProfileService _profileService;
     private readonly ISocialService _socialService;
+    private readonly IProfileDetailService _detailService;
 
-    public ProfileController(IProfileService profileService, ISocialService socialService)
+    public ProfileController(
+        IProfileService profileService, 
+        ISocialService socialService,
+        IProfileDetailService detailService)
     {
         _profileService = profileService;
         _socialService = socialService;
+        _detailService = detailService;
     }
 
     /// <summary>
@@ -67,4 +73,64 @@ public class ProfileController : ControllerBase
         
         return Ok(await _socialService.GetFollowingAsync(id.Value, filter));
     }
+    
+    
+    /// <summary>
+    /// GET /api/profiles/{profile}/work
+    /// </summary>
+    [HttpGet("{profile}/work")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<WorkExperienceDto>>>> GetWork(string profile)
+    {
+        var id = await _profileService.ResolveIdAsync(profile);
+        if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
+
+        // Note: Check visibility permissions here if needed (Public vs Private)
+        return Ok(await _detailService.GetWorkAsync(id.Value));
+    }
+
+    /// <summary>
+    /// GET /api/profiles/{profile}/education
+    /// </summary>
+    [HttpGet("{profile}/education")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<EducationExperienceDto>>>> GetEducation(string profile)
+    {
+        var id = await _profileService.ResolveIdAsync(profile);
+        if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
+        
+        return Ok(await _detailService.GetEducationAsync(id.Value));
+    }
+
+    /// <summary>
+    /// GET /api/profiles/{profile}/projects
+    /// </summary>
+    [HttpGet("{profile}/projects")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<ProjectDto>>>> GetProjects(string profile)
+    {
+        var id = await _profileService.ResolveIdAsync(profile);
+        if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
+
+        var projects = await _detailService.GetProjectsAsync(id.Value);
+        
+        // Filter out non-public projects if viewer is not allowed
+        // Simplified: Returning filtered list based on visibility logic (to be fully implemented)
+        if (projects.Data != null)
+        {
+             projects.Data = projects.Data.Where(p => p.Visibility == Models.Enums.Visibility.Public);
+        }
+
+        return Ok(projects);
+    }
+
+    /// <summary>
+    /// GET /api/profiles/{profile}/socials
+    /// </summary>
+    [HttpGet("{profile}/socials")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<SocialLinkDto>>>> GetSocials(string profile)
+    {
+        var id = await _profileService.ResolveIdAsync(profile);
+        if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
+        
+        return Ok(await _detailService.GetSocialsAsync(id.Value));
+    }
+
 }
