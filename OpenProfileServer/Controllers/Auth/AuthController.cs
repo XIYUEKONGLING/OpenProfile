@@ -10,7 +10,7 @@ using OpenProfileServer.Models.DTOs.Common;
 namespace OpenProfileServer.Controllers.Auth;
 
 /// <summary>
-/// Handles authentication, token management, and session revocation.
+/// Handles authentication, registration, token management, and session revocation.
 /// </summary>
 [Route("api/auth")]
 [ApiController]
@@ -21,6 +21,24 @@ public class AuthController : ControllerBase
     public AuthController(IAuthService authService)
     {
         _authService = authService;
+    }
+
+    /// <summary>
+    /// Registers a new personal account.
+    /// Rate limited by Register policy.
+    /// </summary>
+    [HttpPost("register")]
+    [EnableRateLimiting(RateLimitPolicies.Register)]
+    public async Task<ActionResult<ApiResponse<TokenResponseDto>>> Register([FromBody] RegisterRequestDto dto)
+    {
+        var result = await _authService.RegisterAsync(dto);
+        
+        if (!result.Status)
+        {
+            return BadRequest(result);
+        }
+
+        return Created("", result);
     }
 
     /// <summary>
@@ -38,7 +56,6 @@ public class AuthController : ControllerBase
 
         if (!result.Status)
         {
-            // Return 401 Unauthorized for invalid credentials
             return Unauthorized(result);
         }
 
@@ -57,7 +74,6 @@ public class AuthController : ControllerBase
 
         if (!result.Status)
         {
-            // Return 422 Unprocessable Entity for invalid/expired refresh tokens
             return UnprocessableEntity(result);
         }
 
@@ -78,7 +94,6 @@ public class AuthController : ControllerBase
 
     /// <summary>
     /// Revokes ALL active sessions and invalidates existing JWTs by rotating the SecurityStamp.
-    /// Use this for critical security breaches or password changes.
     /// </summary>
     [Authorize]
     [HttpPost("logout-all")]

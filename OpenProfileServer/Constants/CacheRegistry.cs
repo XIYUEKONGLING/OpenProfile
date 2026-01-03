@@ -21,7 +21,17 @@ public static class CacheKeys
     // ==========================================
 
     /// <summary>
-    /// Generates a cache key for an account's public profile.
+    /// Generates a cache key for an account's public profile DTO.
     /// </summary>
-    public static string AccountProfile(Guid id) => $"Account:Profile:{id}";
+    public static string AccountProfile(Guid accountId) => $"Account:Profile:{accountId}";
+
+    /// <summary>
+    /// Generates a cache key for an account's private settings.
+    /// </summary>
+    public static string AccountSettings(Guid accountId) => $"Account:Settings:{accountId}";
+
+    /// <summary>
+    /// Generates a cache key for an account's permissions/roles.
+    /// </summary>
+    public static string AccountPermissions(Guid accountId) => $"Account:Permissions:{accountId}";
 }

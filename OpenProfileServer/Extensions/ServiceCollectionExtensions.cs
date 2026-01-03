@@ -263,6 +263,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISystemSettingService, SystemSettingService>();
         services.AddScoped<ISiteMetadataService, SiteMetadataService>(); 
         services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IAccountService, AccountService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IEmailService, EmailService>();
         

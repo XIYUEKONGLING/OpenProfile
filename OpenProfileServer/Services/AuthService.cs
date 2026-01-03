@@ -1,12 +1,16 @@
+using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenProfileServer.Configuration;
+using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Auth;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.Entities;
 using OpenProfileServer.Models.Entities.Auth;
+using OpenProfileServer.Models.Entities.Profiles;
+using OpenProfileServer.Models.Entities.Settings;
 using OpenProfileServer.Models.Enums;
 using OpenProfileServer.Utilities;
 
@@ -16,13 +20,138 @@ public class AuthService : IAuthService
 {
     private readonly ApplicationDbContext _context;
     private readonly ITokenService _tokenService;
+    private readonly ISystemSettingService _settingService;
     private readonly JwtOptions _jwtOptions;
 
-    public AuthService(ApplicationDbContext context, ITokenService tokenService, IOptions<JwtOptions> jwtOptions)
+    // Regex for valid username: Alphanumeric, underscores, hyphens. 3-64 chars.
+    private static readonly Regex AccountNameRegex = new("^[a-zA-Z0-9_-]{3,64}$", RegexOptions.Compiled);
+
+    public AuthService(
+        ApplicationDbContext context, 
+        ITokenService tokenService, 
+        ISystemSettingService settingService,
+        IOptions<JwtOptions> jwtOptions)
     {
         _context = context;
         _tokenService = tokenService;
+        _settingService = settingService;
         _jwtOptions = jwtOptions.Value;
+    }
+
+    public async Task<ApiResponse<TokenResponseDto>> RegisterAsync(RegisterRequestDto dto)
+    {
+        // 1. Check if registration is allowed
+        var allowRegistration = await _settingService.GetBoolAsync(SystemSettingKeys.AllowRegistration, false);
+        if (!allowRegistration)
+        {
+            return ApiResponse<TokenResponseDto>.Failure("Public registration is currently disabled.");
+        }
+
+        // 2. Validate format
+        if (!AccountNameRegex.IsMatch(dto.AccountName))
+        {
+            return ApiResponse<TokenResponseDto>.Failure("Account name contains invalid characters. Use letters, numbers, underscores, or hyphens.");
+        }
+
+        // 3. Check Uniqueness
+        var existingUser = await _context.Accounts
+            .AnyAsync(a => a.AccountName == dto.AccountName);
+        if (existingUser)
+        {
+            return ApiResponse<TokenResponseDto>.Failure("Account name is already taken.");
+        }
+
+        var existingEmail = await _context.AccountEmails
+            .AnyAsync(e => e.Email == dto.Email);
+        if (existingEmail)
+        {
+            return ApiResponse<TokenResponseDto>.Failure("Email is already in use.");
+        }
+
+        // 4. Create Entities (Transaction)
+        await using var transaction = await _context.Database.BeginTransactionAsync();
+        try
+        {
+            var accountId = Guid.NewGuid();
+            var (hash, salt) = CryptographyProvider.CreateHash(dto.Password);
+
+            // Core Account
+            var account = new Account
+            {
+                Id = accountId,
+                AccountName = dto.AccountName,
+                Type = AccountType.Personal,
+                Role = AccountRole.User,
+                Status = AccountStatus.Active,
+                CreatedAt = DateTime.UtcNow,
+                LastLogin = DateTime.UtcNow
+            };
+
+            // Credentials
+            var credential = new AccountCredential
+            {
+                AccountId = accountId,
+                PasswordHash = hash,
+                PasswordSalt = salt,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            // Primary Email
+            var email = new AccountEmail
+            {
+                AccountId = accountId,
+                Email = dto.Email,
+                IsPrimary = true,
+                IsVerified = false, // Verification logic handled separately
+                CreatedAt = DateTime.UtcNow
+            };
+
+            // Security Settings
+            var security = new AccountSecurity
+            {
+                AccountId = accountId,
+                UpdatedAt = DateTime.UtcNow
+            };
+
+            // Default Personal Profile
+            var profile = new PersonalProfile
+            {
+                Id = accountId,
+                Account = account,
+                DisplayName = dto.AccountName, // Default to username
+                Description = "Hello, I am using OpenProfile!",
+            };
+
+            // Default Settings
+            var settings = new PersonalSettings
+            {
+                Id = accountId,
+                Account = account,
+                Visibility = Visibility.Public,
+                DefaultVisibility = Visibility.Public,
+                ShowLocalTime = false
+            };
+
+            _context.Accounts.Add(account);
+            _context.AccountCredentials.Add(credential);
+            _context.AccountEmails.Add(email);
+            _context.AccountSecurities.Add(security);
+            _context.PersonalProfiles.Add(profile);
+            _context.PersonalSettings.Add(settings);
+
+            await _context.SaveChangesAsync();
+            await transaction.CommitAsync();
+
+            // 5. Auto-Login
+            // Note: If email verification is strict, we might return a success message instead of a token here.
+            // For this implementation, we allow immediate access (Active status).
+            return await GenerateTokenResponseAsync(account, null); 
+        }
+        catch (Exception)
+        {
+            await transaction.RollbackAsync();
+            throw; // Global exception handler will catch this
+        }
     }
 
     public async Task<ApiResponse<TokenResponseDto>> LoginAsync(LoginRequestDto dto, string? deviceInfo)
@@ -44,9 +173,9 @@ public class AuthService : IAuthService
         }
 
         // 2. Account Type Restriction
-        if (account.Type == AccountType.Organization || account.Type == AccountType.Application || account.Type == AccountType.Service) // || account.Type == AccountType.System
+        if (account.Type != AccountType.Personal && account.Type != AccountType.System) // || account.Type == AccountType.System
         {
-            return ApiResponse<TokenResponseDto>.Failure("Direct login is not supported for this account type.");
+            return ApiResponse<TokenResponseDto>.Failure("Direct login is only supported for Personal accounts.");
         }
 
         // 3. Status Logic Check
