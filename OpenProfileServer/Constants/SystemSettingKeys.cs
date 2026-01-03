@@ -10,4 +10,10 @@ public static class SystemSettingKeys
     
     // Limits
     public const string DefaultStorageLimit = "DefaultStorageLimit";
+    
+    // Email Templates
+    public const string EmailVerificationSubject = "Email:Template:Verification:Subject";
+    public const string EmailVerificationBody = "Email:Template:Verification:Body";
+    public const string EmailPasswordResetSubject = "Email:Template:PasswordReset:Subject";
+    public const string EmailPasswordResetBody = "Email:Template:PasswordReset:Body";
 }

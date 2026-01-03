@@ -138,7 +138,8 @@ public class ApplicationDbContext : DbContext
         // Email Config
         modelBuilder.Entity<AccountEmail>(entity =>
         {
-            entity.HasIndex(e => e.Email).IsUnique();
+            // entity.HasIndex(e => e.Email).IsUnique();
+            entity.HasIndex(e => e.Email);
         });
 
         // Organization Member Config
