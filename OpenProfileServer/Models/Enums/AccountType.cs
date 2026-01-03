@@ -21,4 +21,9 @@ public enum AccountType
     /// Reserved for internal system operations.
     /// </summary>
     System = 4,
+    
+    /// <summary>
+    /// Reserved for internal system operations.
+    /// </summary>
+    Service = 5,
 }
