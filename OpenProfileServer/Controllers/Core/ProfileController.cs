@@ -47,6 +47,7 @@ public class ProfileController : ControllerBase
     /// Identifier can be username or @uuid.
     /// </summary>
     [HttpGet("{profile}")]
+    [HttpGet("{profile}.json")]
     public async Task<ActionResult<ApiResponse<ProfileDto>>> GetProfile(string profile)
     {
         var result = await _profileService.GetProfileAsync(profile);
@@ -59,6 +60,7 @@ public class ProfileController : ControllerBase
     /// Get list of followers.
     /// </summary>
     [HttpGet("{profile}/followers")]
+    [HttpGet("{profile}/followers.json")]
     public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowers(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
@@ -72,6 +74,7 @@ public class ProfileController : ControllerBase
     /// Get list of following.
     /// </summary>
     [HttpGet("{profile}/following")]
+    [HttpGet("{profile}/following.json")]
     public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowing(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
@@ -88,6 +91,7 @@ public class ProfileController : ControllerBase
     /// GET /api/profiles/{profile}/work
     /// </summary>
     [HttpGet("{profile}/work")]
+    [HttpGet("{profile}/work.json")]
     public async Task<ActionResult<ApiResponse<IEnumerable<WorkExperienceDto>>>> GetWork(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
@@ -100,6 +104,7 @@ public class ProfileController : ControllerBase
     /// GET /api/profiles/{profile}/education
     /// </summary>
     [HttpGet("{profile}/education")]
+    [HttpGet("{profile}/education.json")]
     public async Task<ActionResult<ApiResponse<IEnumerable<EducationExperienceDto>>>> GetEducation(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
@@ -112,6 +117,7 @@ public class ProfileController : ControllerBase
     /// GET /api/profiles/{profile}/projects
     /// </summary>
     [HttpGet("{profile}/projects")]
+    [HttpGet("{profile}/projects.json")]
     public async Task<ActionResult<ApiResponse<IEnumerable<ProjectDto>>>> GetProjects(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
@@ -124,6 +130,7 @@ public class ProfileController : ControllerBase
     /// GET /api/profiles/{profile}/socials
     /// </summary>
     [HttpGet("{profile}/socials")]
+    [HttpGet("{profile}/socials.json")]
     public async Task<ActionResult<ApiResponse<IEnumerable<SocialLinkDto>>>> GetSocials(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
@@ -137,6 +144,7 @@ public class ProfileController : ControllerBase
     /// Get organizations this user has joined publicly.
     /// </summary>
     [HttpGet("{profile}/memberships")]
+    [HttpGet("{profile}/memberships.json")]
     public async Task<ActionResult<ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>>> GetMemberships(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
@@ -150,6 +158,7 @@ public class ProfileController : ControllerBase
     /// Get public members of an organization.
     /// </summary>
     [HttpGet("{profile}/members")]
+    [HttpGet("{profile}/members.json")]
     public async Task<ActionResult<ApiResponse<IEnumerable<OrganizationMemberDto>>>> GetMembers(string profile)
     {
         var orgId = await _profileService.ResolveIdAsync(profile);
