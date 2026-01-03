@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenProfileServer.Configuration;
+using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
 using OpenProfileServer.Extensions;
 using OpenProfileServer.Services;
@@ -59,6 +60,7 @@ public class Program
         builder.Services.AddServerCaching(builder.Configuration);      // FusionCache + Redis (Dynamic Options)
         builder.Services.AddServerRateLimiting(builder.Configuration); // Rate Limiting (Dynamic Policies)
         builder.Services.AddServerCompression(builder.Configuration);  // Response Compression (Gzip/Brotli)
+        builder.Services.AddServerCors(builder.Configuration);
         
         // 5. Application Services
         builder.Services.AddServerServices();
@@ -155,6 +157,7 @@ public class Program
         }
 
         app.UseHttpsRedirection();
+        app.UseCors(ApplicationPolicies.CorsPolicy);
         
         // Rate Limiting needs to run before expensive operations but after HTTPS
         app.UseRateLimiter();

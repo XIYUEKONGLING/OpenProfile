@@ -39,6 +39,7 @@ public static class ServiceCollectionExtensions
         services.Configure<JwtOptions>(config.GetSection(JwtOptions.SectionName));
         services.Configure<EmailOptions>(config.GetSection(EmailOptions.SectionName));
         services.Configure<CompressionOptions>(config.GetSection(CompressionOptions.SectionName));
+        services.Configure<CorsOptions>(config.GetSection(CorsOptions.SectionName));
 
         // Register Validators to enforce integrity rules
         services.AddSingleton<IValidateOptions<ApplicationOptions>, ApplicationOptionsValidator>();
@@ -50,6 +51,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IValidateOptions<EmailOptions>, EmailOptionsValidator>();
         services.AddSingleton<IValidateOptions<CompressionOptions>, CompressionOptionsValidator>();
         services.AddSingleton<IValidateOptions<StorageOptions>, StorageOptionsValidator>();
+        services.AddSingleton<IValidateOptions<CorsOptions>, CorsOptionsValidator>();
 
         return services;
     }
@@ -250,6 +252,43 @@ public static class ServiceCollectionExtensions
                 await context.HttpContext.Response.WriteAsJsonAsync(
                     new MessageResponse("Too many requests. Please try again later." ), token);
             };
+        });
+
+        return services;
+    }
+    
+    public static IServiceCollection AddServerCors(this IServiceCollection services, IConfiguration config)
+    {
+        var corsOptions = config.GetSection(CorsOptions.SectionName).Get<CorsOptions>() ?? new CorsOptions();
+
+        services.AddCors(options =>
+        {
+            options.AddPolicy(ApplicationPolicies.CorsPolicy,builder =>
+            {
+                // Check if configuration contains the wildcard "*"
+                bool allowAll = corsOptions.AllowedOrigins.Contains("*");
+
+                if (allowAll)
+                {
+                    // If "*" is specified, allow any origin but DO NOT allow credentials.
+                    // Browsers strictly forbid "Access-Control-Allow-Origin: *" combined with "Access-Control-Allow-Credentials: true".
+                    builder.AllowAnyOrigin()
+                        .AllowAnyHeader()
+                        .AllowAnyMethod();
+                }
+                else if (corsOptions.AllowedOrigins.Length > 0)
+                {
+                    // Specific origins allow credentials (Cookies, Auth Headers)
+                    builder.WithOrigins(corsOptions.AllowedOrigins)
+                        .AllowAnyHeader()
+                        .AllowAnyMethod()
+                        .AllowCredentials();
+                }
+                else
+                {
+                    // Default safe fallback (deny all or localhost only)
+                }
+            });
         });
 
         return services;
