@@ -24,6 +24,7 @@ public class AccountService : IAccountService
     private readonly IVerificationService _verificationService;
     private readonly ISocialService _socialService;
     private readonly ISystemSettingService _settingService;
+    private readonly IEmailService _emailService;
 
     public AccountService(
         ApplicationDbContext context, 
@@ -31,7 +32,8 @@ public class AccountService : IAccountService
         IAuthService authService,
         IVerificationService verificationService,
         ISocialService socialService,
-        ISystemSettingService settingService)
+        ISystemSettingService settingService,
+        IEmailService emailService)
     {
         _context = context;
         _cache = cache;
@@ -39,6 +41,7 @@ public class AccountService : IAccountService
         _verificationService = verificationService;
         _socialService = socialService;
         _settingService = settingService;
+        _emailService = emailService;
     }
 
     private async Task<string?> ValidateProfileAssetsAsync(UpdateProfileRequestDto dto)
@@ -358,23 +361,48 @@ public class AccountService : IAccountService
     public async Task<ApiResponse<MessageResponse>> AddEmailAsync(Guid accountId, AddEmailRequestDto dto)
     {
         // 1. Uniqueness check
-        if (await _context.AccountEmails.AnyAsync(e => e.Email.ToLower() == dto.Email.ToLower()))
+        var emailLower = dto.Email.ToLowerInvariant();
+        if (await _context.AccountEmails.AnyAsync(e => e.Email.ToLower() == emailLower))
+        {
             return ApiResponse<MessageResponse>.Failure("Email is already in use.");
+        }
 
         var account = await _context.Accounts.FindAsync(accountId);
-        if (account == null) return ApiResponse<MessageResponse>.Failure("Account not found.");
+        if (account == null)
+        {
+            return ApiResponse<MessageResponse>.Failure("Account not found.");
+        }
+        
+        // 2. Check Feature Flags & System Settings
+        // Determine if we actually need to validate a code
+        bool isEmailEnabled = _emailService.IsEnabled;
+        bool requireVerification = await _settingService.GetBoolAsync(SystemSettingKeys.EmailAddRequiresVerification, true);
+        
+        // If email service is ON and system REQUIRES verification, validate the code
+        if (isEmailEnabled && requireVerification)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Code))
+            {
+                return ApiResponse<MessageResponse>.Failure("Verification code is required.");
+            }
 
-        // 2. Validate Code
-        var isValid = await _verificationService.ValidateCodeAsync(dto.Email, VerificationType.VerifyEmail, dto.Code);
-        if (!isValid) return ApiResponse<MessageResponse>.Failure("Invalid or expired verification code.");
+            var isValid = await _verificationService.ValidateCodeAsync(dto.Email, VerificationType.VerifyEmail, dto.Code);
+            if (!isValid)
+            {
+                return ApiResponse<MessageResponse>.Failure("Invalid or expired verification code.");
+            }
+        }
 
-        // 3. Add Verified Email
+        // 3. Add Email
+        // If verification was skipped (not required/enabled), we mark it as verified immediately anyway
+        // to maintain consistency, or you could set it to false if the system allows unverified secondary emails.
+        // Based on your requirement: "directly pass" implies immediate success and verification.
         var email = new AccountEmail
         {
             AccountId = accountId,
             Email = dto.Email,
             IsPrimary = false,
-            IsVerified = true, // Verified immediately
+            IsVerified = true, 
             VerifiedAt = DateTime.UtcNow,
             CreatedAt = DateTime.UtcNow
         };

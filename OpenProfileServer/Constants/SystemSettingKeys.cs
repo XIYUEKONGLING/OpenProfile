@@ -10,6 +10,8 @@ public static class SystemSettingKeys
     public const string AllowSearchEngineIndexing = "AllowSearchEngineIndexing";
     public const string RequireEmailVerification = "RequireEmailVerification";
     
+    public const string EmailAddRequiresVerification = "EmailAddRequiresVerification";
+    
     // Limits
     public const string DefaultStorageLimit = "DefaultStorageLimit";
     

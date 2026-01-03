@@ -86,6 +86,10 @@ public class DbSeedService
                 SystemSettingKeys.DefaultStorageLimit,
                 ("104857600", "number", "Default storage quota in bytes (100MB).")
             },
+            { 
+                SystemSettingKeys.EmailAddRequiresVerification, 
+                ("true", "boolean", "Requires verification code when adding a new email to an existing account.") 
+            },
             
             // Email Templates
             {
