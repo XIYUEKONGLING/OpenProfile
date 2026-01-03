@@ -194,6 +194,29 @@ public class OrganizationService : IOrganizationService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Organization marked for deletion."));
     }
 
+    public async Task<ApiResponse<MessageResponse>> RestoreOrganizationAsync(Guid ownerId, Guid orgId)
+    {
+        var member = await _context.OrganizationMembers.FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == ownerId);
+
+        if (member == null || member.Role != MemberRole.Owner)
+            return ApiResponse<MessageResponse>.Failure("Only the Owner can restore an organization.");
+
+        var account = await _context.Accounts.FindAsync(orgId);
+        if (account == null) return ApiResponse<MessageResponse>.Failure("Organization not found.");
+
+        if (account.Status != AccountStatus.PendingDeletion && account.Status != AccountStatus.Suspended)
+        {
+            return ApiResponse<MessageResponse>.Failure("Organization is not in a state that requires restoration.");
+        }
+
+        account.Status = AccountStatus.Active;
+        await _context.SaveChangesAsync();
+
+        await _cache.RemoveAsync(CacheKeys.AccountProfile(orgId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Organization restored successfully."));
+    }
+
     public async Task<ApiResponse<OrganizationSettingsDto>> GetOrgSettingsAsync(Guid userId, Guid orgId)
     {
         var (member, settings) = await GetMemberAndSettingsAsync(userId, orgId);

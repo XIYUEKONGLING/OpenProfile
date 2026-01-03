@@ -96,6 +96,13 @@ public class OrganizationController : ControllerBase
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
+    [HttpPost("{org}/restore")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> Restore(Guid org)
+    {
+        var result = await _orgService.RestoreOrganizationAsync(GetUserId(), org);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
     // === Members & Invites ===
 
     [HttpGet("{org}/members")]

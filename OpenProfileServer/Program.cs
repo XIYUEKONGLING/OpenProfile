@@ -52,6 +52,10 @@ public class Program
 
         // 4. Core Infrastructure (via Extensions)
         builder.Services.AddDatabaseContext(builder.Configuration);
+        
+        // Enable Data Protection (Critical for Cluster Mode/Redis)
+        builder.Services.AddServerDataProtection(builder.Configuration);
+
         builder.Services.AddServerCaching(builder.Configuration);      // FusionCache + Redis (Dynamic Options)
         builder.Services.AddServerRateLimiting(builder.Configuration); // Rate Limiting (Dynamic Policies)
         builder.Services.AddServerCompression(builder.Configuration);  // Response Compression (Gzip/Brotli)

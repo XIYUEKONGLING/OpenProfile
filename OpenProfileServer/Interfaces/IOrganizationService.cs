@@ -14,6 +14,11 @@ public interface IOrganizationService
     Task<ApiResponse<IEnumerable<OrganizationDto>>> GetMyOrganizationsAsync(Guid userId);
     Task<ApiResponse<OrganizationDto>> GetOrganizationAsync(Guid userId, Guid orgId);
     Task<ApiResponse<MessageResponse>> DeleteOrganizationAsync(Guid ownerId, Guid orgId);
+    
+    /// <summary>
+    /// Restores an organization that is in PendingDeletion status.
+    /// </summary>
+    Task<ApiResponse<MessageResponse>> RestoreOrganizationAsync(Guid ownerId, Guid orgId);
 
     // === Settings & Profile ===
     Task<ApiResponse<OrganizationSettingsDto>> GetOrgSettingsAsync(Guid userId, Guid orgId);
