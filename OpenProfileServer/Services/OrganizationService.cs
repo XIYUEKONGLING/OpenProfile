@@ -406,14 +406,22 @@ public class OrganizationService : IOrganizationService
 
         if (member.Role == MemberRole.Owner)
         {
-            var count = await _context.OrganizationMembers.CountAsync(m => m.OrganizationId == orgId);
-            if (count > 1) return ApiResponse<MessageResponse>.Failure("Owners cannot leave. Transfer ownership or dissolve the organization.");
+            // var count = await _context.OrganizationMembers.CountAsync(m => m.OrganizationId == orgId);
+            // if (count > 1) return ApiResponse<MessageResponse>.Failure("Owners cannot leave. Transfer ownership or dissolve the organization.");
+            var ownerCount = await _context.OrganizationMembers
+                .CountAsync(m => m.OrganizationId == orgId && m.Role == MemberRole.Owner);
+    
+            if (ownerCount == 1) 
+            {
+                return ApiResponse<MessageResponse>.Failure("The last Owner cannot leave. Transfer ownership or dissolve the organization.");
+            }
         }
 
         _context.OrganizationMembers.Remove(member);
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.UserMemberships(userId));
         await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId));
+        await _cache.RemoveAsync(CacheKeys.OrganizationMembers(orgId)); 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Left organization."));
     }
 
