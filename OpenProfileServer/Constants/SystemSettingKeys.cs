@@ -13,6 +13,10 @@ public static class SystemSettingKeys
     // Limits
     public const string DefaultStorageLimit = "DefaultStorageLimit";
     
+    // Asset Limits
+    public const string MaxAssetSizeBytes = "MaxAssetSizeBytes";
+    public const string MaxGalleryAssetSizeBytes = "MaxGalleryAssetSizeBytes";
+    
     // Email Templates
     public const string EmailVerificationSubject = "Email:Template:Verification:Subject";
     public const string EmailVerificationBody = "Email:Template:Verification:Body";

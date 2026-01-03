@@ -103,7 +103,19 @@ public class DbSeedService
             {
                 SystemSettingKeys.EmailPasswordResetBody,
                 ("<p>You requested a password reset. Use this code: <strong>{Code}</strong></p>", "html", "HTML body for password reset. Variables: {Username}, {Code}.")
+            },
+            
+            // Asset Limits
+            { 
+                SystemSettingKeys.MaxAssetSizeBytes, 
+                ("5242880", "number", "Maximum size for standard assets like avatars and logos (Default 5MB).") 
+            },
+            { 
+                SystemSettingKeys.MaxGalleryAssetSizeBytes, 
+                ("104857600", "number", "Maximum size for gallery items (Default 10MB).") 
             }
+            
+            
         };
 
         foreach (var (key, (value, type, desc)) in defaults)
