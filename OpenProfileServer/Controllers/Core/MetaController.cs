@@ -18,12 +18,20 @@ namespace OpenProfileServer.Controllers.Core;
 public class MetaController : ControllerBase
 {
     private readonly ISiteMetadataService _metadataService;
+    private readonly ISystemSettingService _settingService;
     private readonly ApplicationOptions _appOptions;
-
-    public MetaController(ISiteMetadataService metadataService, IOptions<ApplicationOptions> appOptions)
+    private readonly EmailOptions _emailOptions;
+    
+    public MetaController(
+        ISiteMetadataService metadataService, 
+        ISystemSettingService settingService,
+        IOptions<ApplicationOptions> appOptions,
+        IOptions<EmailOptions> emailOptions)
     {
         _metadataService = metadataService;
+        _settingService = settingService;
         _appOptions = appOptions.Value;
+        _emailOptions = emailOptions.Value;
     }
 
     /// <summary>
@@ -35,11 +43,13 @@ public class MetaController : ControllerBase
     {
         var info = GetServerInfoInternal();
         var meta = await GetSiteMetaInternal();
+        var features = await GetFeaturesInternal();
 
         var response = new ServerResponseDto
         {
             ServerInfo = info,
-            SiteMeta = meta
+            SiteMeta = meta,
+            Features = features
         };
 
         return Ok(ApiResponse<ServerResponseDto>.Success(response));
@@ -64,6 +74,17 @@ public class MetaController : ControllerBase
     {
         return Ok(ApiResponse<SiteMetadataDto>.Success(await GetSiteMetaInternal()));
     }
+    
+    /// <summary>
+    /// GET /api/features
+    /// Standalone endpoint for feature flags.
+    /// </summary>
+    [HttpGet("features")]
+    public async Task<ActionResult<ApiResponse<ServerFeaturesDto>>> GetFeatures()
+    {
+        return Ok(ApiResponse<ServerFeaturesDto>.Success(await GetFeaturesInternal()));
+    }
+
 
     /// <summary>
     /// POST /api/admin/meta
@@ -132,6 +153,20 @@ public class MetaController : ControllerBase
                 Value = metadata.Favicon.Value, 
                 Tag = metadata.Favicon.Tag 
             }
+        };
+    }
+    
+    private async Task<ServerFeaturesDto> GetFeaturesInternal()
+    {
+        return new ServerFeaturesDto
+        {
+            // Check static config
+            Email = _emailOptions.IsEnabled && !string.IsNullOrWhiteSpace(_emailOptions.Host),
+            
+            // Check dynamic database settings
+            Registration = await _settingService.GetBoolAsync(SystemSettingKeys.AllowRegistration, true),
+            SearchIndexing = await _settingService.GetBoolAsync(SystemSettingKeys.AllowSearchEngineIndexing, true),
+            EmailVerification = await _settingService.GetBoolAsync(SystemSettingKeys.RequireEmailVerification, false)
         };
     }
 }

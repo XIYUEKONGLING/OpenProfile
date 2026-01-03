@@ -6,4 +6,5 @@ public class ServerResponseDto
 {
     public ServerInfoDto ServerInfo { get; set; } = new();
     public SiteMetadataDto SiteMeta { get; set; } = new();
+    public ServerFeaturesDto Features { get; set; } = new();
 }
