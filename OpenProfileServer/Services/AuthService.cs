@@ -44,7 +44,7 @@ public class AuthService : IAuthService
         }
 
         // 2. Account Type Restriction
-        if (account.Type == AccountType.Organization || account.Type == AccountType.Application || account.Type == AccountType.System)
+        if (account.Type == AccountType.Organization || account.Type == AccountType.Application) // || account.Type == AccountType.System
         {
             return ApiResponse<TokenResponseDto>.Failure("Direct login is not supported for this account type.");
         }
