@@ -460,6 +460,8 @@ public class OrganizationService : IOrganizationService
             );
             
             await _cache.RemoveAsync(CacheKeys.UserMemberships(userId));
+            // If user joined with public visibility default, we should invalidate public cache too
+            await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId));
             
             return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Invitation accepted."));
         }
@@ -517,6 +519,7 @@ public class OrganizationService : IOrganizationService
         if (dto.Visibility.HasValue) target.Visibility = dto.Visibility.Value;
 
         await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(targetUserId)); 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member updated."));
     }
 
@@ -534,7 +537,8 @@ public class OrganizationService : IOrganizationService
 
         _context.OrganizationMembers.Remove(member);
         await _context.SaveChangesAsync();
-        await _cache.RemoveAsync(CacheKeys.UserMemberships(userId));
+        await _cache.RemoveAsync(CacheKeys.UserMemberships(userId)); // My private list
+        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId)); // My public list
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Left organization."));
     }
