@@ -39,7 +39,7 @@ public class DbSeedService
         {
             SiteName = "OpenProfile",
             SiteDescription = "Open source identity management platform.",
-            Copyright = $"© {DateTime.UtcNow.Year} OpenProfile Team",
+            Copyright = $"\u00a9 {DateTime.UtcNow.Year} OpenProfile Team",
             ContactEmail = "admin@localhost",
             Logo = new Asset
             {
