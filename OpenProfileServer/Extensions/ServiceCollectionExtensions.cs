@@ -273,6 +273,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IProfileService, ProfileService>();
         services.AddScoped<IProfileDetailService, ProfileDetailService>();
         services.AddScoped<ISocialService, SocialService>();
+        services.AddScoped<INotificationService, NotificationService>();
+        services.AddScoped<IOrganizationService, OrganizationService>();
         
         // Infrastructure
         services.AddScoped<IEmailService, EmailService>();

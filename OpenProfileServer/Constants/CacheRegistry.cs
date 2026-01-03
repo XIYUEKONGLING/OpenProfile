@@ -48,5 +48,25 @@ public static class CacheKeys
     public static string ProfileEducation(Guid profileId) => $"Profile:Education:{profileId}";
     public static string ProfileProjects(Guid profileId) => $"Profile:Projects:{profileId}";
     public static string ProfileSocials(Guid profileId) => $"Profile:Socials:{profileId}";
+    
+    // ==========================================
+    // Organizations
+    // ==========================================
+    
+    /// <summary>
+    /// Cache key for an organization's member list (public view).
+    /// </summary>
+    public static string OrganizationMembers(Guid orgId) => $"Org:Members:{orgId}";
+    
+    /// <summary>
+    /// Cache key for a user's membership list (which orgs do I belong to?).
+    /// </summary>
+    public static string UserMemberships(Guid userId) => $"User:Memberships:{userId}";
+    
+    
+    /// <summary>
+    /// Cache key to quickly check a user's role in an org.
+    /// </summary>
+    public static string MemberRole(Guid orgId, Guid userId) => $"Org:Role:{orgId}:{userId}";
 
 }
