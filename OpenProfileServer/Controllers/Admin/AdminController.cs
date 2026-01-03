@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Admin;
 using OpenProfileServer.Models.DTOs.Common;
+using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.Enums;
 
 namespace OpenProfileServer.Controllers.Admin;
@@ -17,10 +18,12 @@ namespace OpenProfileServer.Controllers.Admin;
 public class AdminController : ControllerBase
 {
     private readonly IAdminService _adminService;
+    private readonly IProfileService _profileService;
 
-    public AdminController(IAdminService adminService)
+    public AdminController(IAdminService adminService, IProfileService profileService)
     {
         _adminService = adminService;
+        _profileService = profileService;
     }
 
     private Guid GetAdminId()
@@ -95,6 +98,58 @@ public class AdminController : ControllerBase
         var result = await _adminService.CreateUserAsync(GetAdminId(), dto);
         return result.Status ? Created("", result) : BadRequest(result);
     }
+    
+    // ==========================================
+    // Organization Management (Admin Override)
+    // ==========================================
 
+    [HttpGet("orgs/{org}/members")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<OrganizationMemberDto>>>> GetOrgMembers(string org)
+    {
+        var orgId = await _profileService.ResolveIdAsync(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        return Ok(await _adminService.AdminGetOrgMembersAsync(orgId.Value));
+    }
+
+    [HttpPost("orgs/{org}/members")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> ForceAddMember(string org, [FromBody] InviteMemberRequestDto dto)
+    {
+        var orgId = await _profileService.ResolveIdAsync(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+        
+        // Resolve Target User (Identity can be username or email)
+        var targetId = await _profileService.ResolveIdAsync(dto.Identity);
+        // Note: ResolveIdAsync might not work for emails if not implemented, assuming Identity is AccountName/Handle here.
+        // If logic requires email resolution, use a helper in AdminService.
+        
+        if (targetId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Target user not found."));
+
+        return Ok(await _adminService.AdminAddMemberAsync(orgId.Value, targetId.Value, dto));
+    }
+
+    [HttpPatch("orgs/{org}/members/{user}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> ForceUpdateMember(string org, string user, [FromBody] UpdateMemberRequestDto dto)
+    {
+        var orgId = await _profileService.ResolveIdAsync(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var userId = await _profileService.ResolveIdAsync(user);
+        if (userId == null) return NotFound(ApiResponse<MessageResponse>.Failure("User not found."));
+
+        return Ok(await _adminService.AdminUpdateMemberAsync(orgId.Value, userId.Value, dto));
+    }
+
+    [HttpDelete("orgs/{org}/members/{user}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> ForceKickMember(string org, string user)
+    {
+        var orgId = await _profileService.ResolveIdAsync(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var userId = await _profileService.ResolveIdAsync(user);
+        if (userId == null) return NotFound(ApiResponse<MessageResponse>.Failure("User not found."));
+
+        return Ok(await _adminService.AdminKickMemberAsync(orgId.Value, userId.Value));
+    }
 
 }

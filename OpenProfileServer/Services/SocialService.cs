@@ -57,8 +57,17 @@ public class SocialService : ISocialService
         if (followerId == targetId) 
             return ApiResponse<MessageResponse>.Failure("You cannot follow yourself.");
 
-        var targetExists = await _context.Accounts.AnyAsync(a => a.Id == targetId);
-        if (!targetExists) return ApiResponse<MessageResponse>.Failure("Target user not found.");
+        // Check Target Existence AND Status
+        var targetAccount = await _context.Accounts
+            .AsNoTracking()
+            .Select(a => new { a.Id, a.Status })
+            .FirstOrDefaultAsync(a => a.Id == targetId);
+            
+        if (targetAccount == null) 
+            return ApiResponse<MessageResponse>.Failure("Target user not found.");
+
+        if (targetAccount.Status != AccountStatus.Active)
+            return ApiResponse<MessageResponse>.Failure("Cannot follow this user (Account is not active).");
 
         // Check Blocks
         var isBlocked = await _context.AccountBlocks
@@ -151,13 +160,11 @@ public class SocialService : ISocialService
 
     public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowersAsync(Guid accountId)
     {
-        // 1. Check Privacy Settings (Real Implementation)
-        // Accessing base AccountSettings directly since it works for both Personal and Org due to TPT/Inheritance
+        // 1. Check Privacy Settings
         var settings = await _context.AccountSettings
             .AsNoTracking()
             .FirstOrDefaultAsync(s => s.Id == accountId);
 
-        // If settings specify hidden list, return empty array as per API spec
         if (settings != null && !settings.ShowFollowersList)
         {
             return ApiResponse<IEnumerable<FollowerDto>>.Success(new List<FollowerDto>());
@@ -169,7 +176,7 @@ public class SocialService : ISocialService
             .Where(f => f.FollowingId == accountId)
             .Include(f => f.Follower)
             .ThenInclude(a => a.Profile)
-            .Where(f => f.Follower.Status == AccountStatus.Active) // Strict Filter: Only Active users shown
+            .Where(f => f.Follower.Status == AccountStatus.Active) 
             .OrderByDescending(f => f.CreatedAt)
             .Select(f => new FollowerDto
             {
@@ -207,7 +214,7 @@ public class SocialService : ISocialService
             .Where(f => f.FollowerId == accountId)
             .Include(f => f.Following)
             .ThenInclude(a => a.Profile)
-            .Where(f => f.Following.Status == AccountStatus.Active) // Strict Filter
+            .Where(f => f.Following.Status == AccountStatus.Active)
             .OrderByDescending(f => f.CreatedAt)
             .Select(f => new FollowerDto
             {

@@ -1,5 +1,6 @@
 using OpenProfileServer.Models.DTOs.Admin;
 using OpenProfileServer.Models.DTOs.Common;
+using OpenProfileServer.Models.DTOs.Organization;
 
 namespace OpenProfileServer.Interfaces;
 
@@ -30,4 +31,10 @@ public interface IAdminService
     /// This is irreversible.
     /// </summary>
     Task<ApiResponse<MessageResponse>> DeleteUserAsync(Guid adminId, Guid targetUserId);
+    
+    // === Organization Management ===
+    Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> AdminGetOrgMembersAsync(Guid orgId);
+    Task<ApiResponse<MessageResponse>> AdminAddMemberAsync(Guid orgId, Guid targetUserId, InviteMemberRequestDto dto);
+    Task<ApiResponse<MessageResponse>> AdminUpdateMemberAsync(Guid orgId, Guid targetUserId, UpdateMemberRequestDto dto);
+    Task<ApiResponse<MessageResponse>> AdminKickMemberAsync(Guid orgId, Guid targetUserId);
 }

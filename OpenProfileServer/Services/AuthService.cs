@@ -53,16 +53,21 @@ public class AuthService : IAuthService
             return ApiResponse<TokenResponseDto>.Failure("Account name contains invalid characters. Use letters, numbers, underscores, or hyphens.");
         }
 
-        // 3. Check Uniqueness
+        // 3. Check Uniqueness (Case-Insensitive)
+        // Using ToLowerInvariant to ensure consistent comparison regardless of DB collation
+        var accountNameLower = dto.AccountName.ToLowerInvariant();
+        
         var existingUser = await _context.Accounts
-            .AnyAsync(a => a.AccountName == dto.AccountName);
+            .AnyAsync(a => a.AccountName.ToLower() == accountNameLower);
+            
         if (existingUser)
         {
             return ApiResponse<TokenResponseDto>.Failure("Account name is already taken.");
         }
 
         var existingEmail = await _context.AccountEmails
-            .AnyAsync(e => e.Email == dto.Email);
+            .AnyAsync(e => e.Email.ToLower() == dto.Email.ToLower());
+            
         if (existingEmail)
         {
             return ApiResponse<TokenResponseDto>.Failure("Email is already in use.");
@@ -143,14 +148,12 @@ public class AuthService : IAuthService
             await transaction.CommitAsync();
 
             // 5. Auto-Login
-            // Note: If email verification is strict, we might return a success message instead of a token here.
-            // For this implementation, we allow immediate access (Active status).
             return await GenerateTokenResponseAsync(account, null); 
         }
         catch (Exception)
         {
             await transaction.RollbackAsync();
-            throw; // Global exception handler will catch this
+            throw;
         }
     }
 
