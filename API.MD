@@ -151,6 +151,19 @@ These endpoints are used by the Static Generator.
 *Endpoints: `/api/me/{resource}` and `/api/me/{resource}/{id}`*
 *Methods: GET, POST (Create/Update), PATCH (Partial Update), DELETE.*
 
+### 6.7 Notifications (Inbox)
+
+Independent of email system. Used for in-app alerts and announcements.
+
+| Method | Endpoint | Description | Permission |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/me/notifications` | List notifications. Supports `?page=1&pageSize=20&unreadOnly=true`. | Owner |
+| **GET** | `/api/me/notifications/unread-count` | Get total count of unread messages. | Owner |
+| **PATCH** | `/api/me/notifications/{id}/read` | Mark a single notification as read. | Owner |
+| **POST** | `/api/me/notifications/read-all` | Mark all notifications as read. | Owner |
+| **DELETE** | `/api/me/notifications/{id}` | Delete a specific notification. | Owner |
+| **DELETE** | `/api/me/notifications` | Delete all read notifications (Cleanup). | Owner |
+
 ---
 
 ## 7. Organization Management (Dynamic / Protected)
@@ -198,10 +211,12 @@ These endpoints are used by the Static Generator.
 
 ## 8. System Administration (Dynamic / Protected)
 
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/admin/users` | List all users. | AdminOrHigher |
-| **POST** | `/api/admin/users` | Force create user/org. | AdminOrHigher |
-| **PATCH** | `/api/admin/users/{user}/status` | Change status (Active/Suspended/Banned). | AdminOrHigher |
-| **DELETE** | `/api/admin/users/{user}` | **Physical Delete** (No cooling-off). | **Root**/Admin |
-| **POST** | `/api/admin/users/{user}/role` | Promote/Demote system role. | **Root** |
+| Method | Endpoint | Description | Permission | Query Params |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/admin/users` | List users with pagination. | Admin+ | `page`, `pageSize`, `search`, `status`, `role` |
+| **POST** | `/api/admin/users` | Force create user/org. | Admin+ | |
+| **PATCH** | `/api/admin/users/{user}/status` | Change status (Active/Suspended/Banned). | Admin+ | |
+| **DELETE** | `/api/admin/users/{user}` | **Physical Delete** (No cooling-off). | **Root**/Admin | |
+| **POST** | `/api/admin/users/{user}/role` | Promote/Demote system role. | **Root** | |
+
+

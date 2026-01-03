@@ -264,6 +264,8 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISiteMetadataService, SiteMetadataService>(); 
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IEmailService, EmailService>();
+        
         services.AddScoped<DbSeedService>();
         
         return services;

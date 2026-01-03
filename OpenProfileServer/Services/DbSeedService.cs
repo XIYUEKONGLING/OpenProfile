@@ -64,6 +64,7 @@ public class DbSeedService
     {
         var defaults = new Dictionary<string, (string Value, string Type, string Desc)>
         {
+            // Policies (Runtime Logic)
             { 
                 SystemSettingKeys.AllowRegistration, 
                 ("true", "boolean", "Allows new users to register.") 
@@ -80,9 +81,28 @@ public class DbSeedService
                 SystemSettingKeys.AllowSearchEngineIndexing, 
                 ("true", "boolean", "Enable robots.txt indexing.") 
             },
+            
             {
                 SystemSettingKeys.DefaultStorageLimit,
                 ("104857600", "number", "Default storage quota in bytes (100MB).")
+            },
+            
+            // Email Templates
+            {
+                SystemSettingKeys.EmailVerificationSubject,
+                ("Verify your OpenProfile account", "string", "Subject line for verification emails.")
+            },
+            {
+                SystemSettingKeys.EmailVerificationBody,
+                ("<h3>Welcome to OpenProfile, {Username}!</h3><p>Your verification code is: <strong>{Code}</strong></p><p>This code will expire in 15 minutes.</p>", "html", "HTML body for verification emails. Variables: {Username}, {Code}.")
+            },
+            {
+                SystemSettingKeys.EmailPasswordResetSubject,
+                ("Reset your password", "string", "Subject line for password reset.")
+            },
+            {
+                SystemSettingKeys.EmailPasswordResetBody,
+                ("<p>You requested a password reset. Use this code: <strong>{Code}</strong></p>", "html", "HTML body for password reset. Variables: {Username}, {Code}.")
             }
         };
 

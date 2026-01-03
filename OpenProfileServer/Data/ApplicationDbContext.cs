@@ -25,6 +25,7 @@ public class ApplicationDbContext : DbContext
     public DbSet<AccountCredential> AccountCredentials { get; set; }
     public DbSet<AccountSecurity> AccountSecurities { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
+    public DbSet<Notification> Notifications { get; set; }
     
     // Organization Relations
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
@@ -67,6 +68,7 @@ public class ApplicationDbContext : DbContext
         base.OnModelCreating(modelBuilder);
 
         ConfigureAccounts(modelBuilder);
+        ConfigureNotifications(modelBuilder);
         ConfigureProfiles(modelBuilder);
         ConfigureSettings(modelBuilder);
         ConfigureDetails(modelBuilder);
@@ -138,6 +140,9 @@ public class ApplicationDbContext : DbContext
         // Email Config
         modelBuilder.Entity<AccountEmail>(entity =>
         {
+            // Allow duplicate emails in the DB to support multiple users attempting to claim an address.
+            // Uniqueness of VERIFIED emails is enforced by application logic (Service Layer).
+            
             // entity.HasIndex(e => e.Email).IsUnique();
             entity.HasIndex(e => e.Email);
         });
@@ -175,6 +180,21 @@ public class ApplicationDbContext : DbContext
             entity.HasOne(i => i.Invitee)
                 .WithMany()
                 .HasForeignKey(i => i.InviteeId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+    }
+
+    private static void ConfigureNotifications(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<Notification>(entity =>
+        {
+            entity.HasIndex(n => n.RecipientId);
+            entity.HasIndex(n => n.IsRead);
+            entity.HasIndex(n => n.CreatedAt);
+            
+            entity.HasOne(n => n.Recipient)
+                .WithMany() // Assuming Account doesn't need a specific collection navigation for notifications for now
+                .HasForeignKey(n => n.RecipientId)
                 .OnDelete(DeleteBehavior.Cascade);
         });
     }
