@@ -300,7 +300,20 @@ public class AccountService : IAccountService
     public async Task<ApiResponse<MessageResponse>> RequestDeletionAsync(Guid accountId)
     {
         var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == accountId);
-        if (account == null) return ApiResponse<MessageResponse>.Failure("Account not found.");
+        if (account == null)
+        {
+            return ApiResponse<MessageResponse>.Failure("Account not found.");
+        }
+        
+        if (account.Role == AccountRole.Root)
+        {
+            return ApiResponse<MessageResponse>.Failure("Root account cannot be deleted.");
+        }
+
+        if (account.Type == AccountType.System)
+        {
+            return ApiResponse<MessageResponse>.Failure("System accounts cannot be deleted.");
+        }
 
         if (account.Status == AccountStatus.Banned)
         {
