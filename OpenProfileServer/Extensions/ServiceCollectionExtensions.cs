@@ -260,17 +260,26 @@ public static class ServiceCollectionExtensions
     /// </summary>
     public static IServiceCollection AddServerServices(this IServiceCollection services)
     {
+        // Core
         services.AddScoped<ISystemSettingService, SystemSettingService>();
         services.AddScoped<ISiteMetadataService, SiteMetadataService>(); 
-        services.AddScoped<IAuthService, AuthService>();
-        services.AddScoped<IAccountService, AccountService>();
-        services.AddScoped<ITokenService, TokenService>();
-        services.AddScoped<IEmailService, EmailService>();
         
+        // Auth & Identity
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<ITokenService, TokenService>();
+        services.AddScoped<IAccountService, AccountService>();
+        
+        // Profiles & Social
+        services.AddScoped<IProfileService, ProfileService>();
+        services.AddScoped<ISocialService, SocialService>();
+        
+        // Infrastructure
+        services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<DbSeedService>();
         
         return services;
     }
+
 
     /// <summary>
     /// Helper to register a policy based on its type.

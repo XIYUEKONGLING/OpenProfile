@@ -6,14 +6,8 @@ public static class CacheKeys
     // Site & System Wide
     // ==========================================
     
-    /// <summary>
-    /// Cache key for the singleton site metadata record.
-    /// </summary>
     public const string SiteMetadata = "Site:Metadata";
 
-    /// <summary>
-    /// Generates a cache key for a specific system setting.
-    /// </summary>
     public static string SystemSetting(string key) => $"System:Setting:{key}";
     
     // ==========================================
@@ -21,17 +15,28 @@ public static class CacheKeys
     // ==========================================
 
     /// <summary>
-    /// Generates a cache key for an account's public profile DTO.
+    /// Maps an AccountName (username) to an AccountId (GUID).
     /// </summary>
+    public static string AccountNameMapping(string name) => $"Account:Mapping:{name.ToLowerInvariant()}";
+
     public static string AccountProfile(Guid accountId) => $"Account:Profile:{accountId}";
 
-    /// <summary>
-    /// Generates a cache key for an account's private settings.
-    /// </summary>
     public static string AccountSettings(Guid accountId) => $"Account:Settings:{accountId}";
 
-    /// <summary>
-    /// Generates a cache key for an account's permissions/roles.
-    /// </summary>
     public static string AccountPermissions(Guid accountId) => $"Account:Permissions:{accountId}";
+
+    // ==========================================
+    // Social
+    // ==========================================
+
+    /// <summary>
+    /// Cache key for checking if User A follows User B.
+    /// Format: Social:Follow:{FollowerId}:{FollowingId}
+    /// </summary>
+    public static string SocialFollow(Guid followerId, Guid followingId) => $"Social:Follow:{followerId}:{followingId}";
+    
+    /// <summary>
+    /// Cache key for checking if User A blocks User B.
+    /// </summary>
+    public static string SocialBlock(Guid blockerId, Guid blockedId) => $"Social:Block:{blockerId}:{blockedId}";
 }
