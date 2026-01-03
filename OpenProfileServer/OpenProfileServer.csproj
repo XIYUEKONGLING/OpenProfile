@@ -46,7 +46,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <Folder Include="Controllers\Admin\" />
       <Folder Include="Entities\" />
       <Folder Include="Infrastructure\" />
       <Folder Include="Middlewares\" />

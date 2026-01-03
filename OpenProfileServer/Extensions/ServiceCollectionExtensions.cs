@@ -276,6 +276,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<INotificationService, NotificationService>();
         services.AddScoped<IOrganizationService, OrganizationService>();
         
+        // Admin
+        services.AddScoped<IAdminService, AdminService>();
+        
         // Infrastructure
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<DbSeedService>();
