@@ -268,6 +268,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ITokenService, TokenService>();
         services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IVerificationService, VerificationService>();
         
         // Profiles & Social
         services.AddScoped<IProfileService, ProfileService>();
@@ -282,6 +283,10 @@ public static class ServiceCollectionExtensions
         // Infrastructure
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<DbSeedService>();
+        
+        // Hosted Services (Background Tasks)
+        services.AddHostedService<VerificationCleanupService>();
+        services.AddHostedService<TokenCleanupService>();
         
         return services;
     }

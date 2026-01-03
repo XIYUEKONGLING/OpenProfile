@@ -6,6 +6,7 @@ using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Settings;
+using OpenProfileServer.Models.DTOs.Social;
 
 namespace OpenProfileServer.Controllers.User;
 
@@ -144,5 +145,53 @@ public class AccountController : ControllerBase
         var result = await _accountService.RestoreAccountAsync(GetUserId());
         if (!result.Status) return BadRequest(result);
         return Ok(result);
+    }
+    
+    // ==========================================
+    // Email Management
+    // ==========================================
+
+    [HttpGet("emails")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<AccountEmailDto>>>> GetEmails()
+    {
+        return Ok(await _accountService.GetEmailsAsync(GetUserId()));
+    }
+
+    [HttpPost("emails")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddEmail([FromBody] AddEmailRequestDto dto)
+    {
+        var result = await _accountService.AddEmailAsync(GetUserId(), dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPost("emails/{email}/primary")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> SetPrimaryEmail(string email)
+    {
+        var result = await _accountService.SetPrimaryEmailAsync(GetUserId(), email);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPost("emails/{email}/verify")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> VerifyEmail(string email, [FromBody] VerifyEmailRequestDto dto)
+    {
+        var result = await _accountService.VerifyEmailAsync(GetUserId(), email, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("emails/{email}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteEmail(string email)
+    {
+        var result = await _accountService.DeleteEmailAsync(GetUserId(), email);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    // ==========================================
+    // Block Management
+    // ==========================================
+
+    [HttpGet("blocks")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<BlockDto>>>> GetBlockedUsers()
+    {
+        return Ok(await _accountService.GetMyBlockedUsersAsync(GetUserId()));
     }
 }

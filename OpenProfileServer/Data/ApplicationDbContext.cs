@@ -27,6 +27,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     
+    public DbSet<VerificationCode> VerificationCodes { get; set; }
+    
     // Organization Relations
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
     public DbSet<OrganizationInvitation> OrganizationInvitations { get; set; }
@@ -74,6 +76,13 @@ public class ApplicationDbContext : DbContext
         ConfigureDetails(modelBuilder);
         ConfigureSystemSettings(modelBuilder);
         ConfigureSiteMetadata(modelBuilder);
+        
+        // Verification Code Config
+        modelBuilder.Entity<VerificationCode>(entity =>
+        {
+            entity.HasIndex(v => new { v.Identifier, v.Type, v.Code });
+            entity.HasIndex(v => v.ExpiresAt); // For cleanup job
+        });
     }
 
     private static void ConfigureAccounts(ModelBuilder modelBuilder)

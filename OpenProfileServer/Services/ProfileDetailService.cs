@@ -25,10 +25,8 @@ public class ProfileDetailService : IProfileDetailService
         _cache = cache;
     }
 
-    // ==========================================
-    // Work Experience
-    // ==========================================
-
+    // ... [Existing Methods: Work, Education, Projects, Socials, Memberships remain unchanged] ...
+    
     public async Task<ApiResponse<IEnumerable<WorkExperienceDto>>> GetWorkAsync(Guid profileId, bool publicOnly = false)
     {
         var cacheKey = CacheKeys.ProfileWork(profileId);
@@ -51,11 +49,6 @@ public class ProfileDetailService : IProfileDetailService
                 })
                 .ToListAsync();
         }, tags: [cacheKey]);
-
-        // Note: WorkExperience currently does not have a "Visibility" column in the Entity model provided.
-        // Assuming they are public by default if the profile is public.
-        // If Visibility was added to WorkExperience entity, we would filter here:
-        // if (publicOnly) return ApiResponse<...>.Success(list.Where(x => x.Visibility == Visibility.Public));
 
         return ApiResponse<IEnumerable<WorkExperienceDto>>.Success(list ?? new List<WorkExperienceDto>());
     }
@@ -116,10 +109,6 @@ public class ProfileDetailService : IProfileDetailService
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Work experience deleted."));
     }
-
-    // ==========================================
-    // Education
-    // ==========================================
 
     public async Task<ApiResponse<IEnumerable<EducationExperienceDto>>> GetEducationAsync(Guid profileId, bool publicOnly = false)
     {
@@ -204,10 +193,6 @@ public class ProfileDetailService : IProfileDetailService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Education deleted."));
     }
 
-    // ==========================================
-    // Projects
-    // ==========================================
-
     public async Task<ApiResponse<IEnumerable<ProjectDto>>> GetProjectsAsync(Guid profileId, bool publicOnly = false)
     {
         var cacheKey = CacheKeys.ProfileProjects(profileId);
@@ -232,7 +217,6 @@ public class ProfileDetailService : IProfileDetailService
                 .ToListAsync();
         }, tags: [cacheKey]);
 
-        // Filter Logic Implementation
         if (list != null && publicOnly)
         {
             list = list.Where(p => p.Visibility == Visibility.Public).ToList();
@@ -296,10 +280,6 @@ public class ProfileDetailService : IProfileDetailService
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Project deleted."));
     }
-
-    // ==========================================
-    // Social Links
-    // ==========================================
 
     public async Task<ApiResponse<IEnumerable<SocialLinkDto>>> GetSocialsAsync(Guid profileId)
     {
@@ -383,10 +363,10 @@ public class ProfileDetailService : IProfileDetailService
             return await _context.OrganizationMembers
                 .AsNoTracking()
                 .Where(m => m.AccountId == profileId)
-                .Where(m => m.Visibility == Visibility.Public) // Only where user set themselves as Public
+                .Where(m => m.Visibility == Visibility.Public)
                 .Include(m => m.Organization)
-                .ThenInclude(o => o.Account) // To check AccountName and Status
-                .Where(m => m.Organization.Account.Status == AccountStatus.Active) // Only show active Orgs
+                .ThenInclude(o => o.Account)
+                .Where(m => m.Organization.Account.Status == AccountStatus.Active)
                 .OrderByDescending(m => m.JoinedAt)
                 .Select(m => new PublicOrganizationMembershipDto
                 {
@@ -409,4 +389,269 @@ public class ProfileDetailService : IProfileDetailService
         return ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>.Success(list ?? new List<PublicOrganizationMembershipDto>());
     }
 
+    // ==========================================
+    // Certificates
+    // ==========================================
+
+    public async Task<ApiResponse<IEnumerable<CertificateDto>>> GetCertificatesAsync(Guid profileId, bool publicOnly = false)
+    {
+        var cacheKey = CacheKeys.ProfileCertificates(profileId);
+        
+        var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            return await _context.Certificates
+                .AsNoTracking()
+                .Where(c => c.ProfileId == profileId)
+                .OrderByDescending(c => c.CreatedAt)
+                .Select(c => new CertificateDto
+                {
+                    Id = c.Id,
+                    Type = c.Type,
+                    Name = c.Name,
+                    Fingerprint = c.Fingerprint,
+                    Email = c.Email,
+                    Content = c.Content,
+                    CreatedAt = c.CreatedAt,
+                    ExpiresAt = c.ExpiresAt,
+                    Visibility = c.Visibility
+                })
+                .ToListAsync();
+        }, tags: [cacheKey]);
+
+        if (list != null && publicOnly)
+        {
+            list = list.Where(c => c.Visibility == Visibility.Public).ToList();
+        }
+
+        return ApiResponse<IEnumerable<CertificateDto>>.Success(list ?? new List<CertificateDto>());
+    }
+
+    public async Task<ApiResponse<MessageResponse>> AddCertificateAsync(Guid accountId, UpdateCertificateRequestDto dto)
+    {
+        var entity = new Certificate
+        {
+            ProfileId = accountId,
+            Type = dto.Type,
+            Name = dto.Name,
+            Fingerprint = dto.Fingerprint,
+            Email = dto.Email,
+            Content = dto.Content,
+            CreatedAt = dto.CreatedAt ?? DateTime.UtcNow,
+            ExpiresAt = dto.ExpiresAt,
+            Visibility = dto.Visibility ?? Visibility.Public
+        };
+
+        _context.Certificates.Add(entity);
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileCertificates(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Certificate added."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> UpdateCertificateAsync(Guid accountId, Guid certId, UpdateCertificateRequestDto dto)
+    {
+        var entity = await _context.Certificates.FirstOrDefaultAsync(c => c.Id == certId && c.ProfileId == accountId);
+        if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
+
+        if (dto.Type != null) entity.Type = dto.Type;
+        if (dto.Name != null) entity.Name = dto.Name;
+        if (dto.Fingerprint != null) entity.Fingerprint = dto.Fingerprint;
+        if (dto.Email != null) entity.Email = dto.Email;
+        if (dto.Content != null) entity.Content = dto.Content;
+        if (dto.CreatedAt != null) entity.CreatedAt = dto.CreatedAt;
+        if (dto.ExpiresAt != null) entity.ExpiresAt = dto.ExpiresAt;
+        if (dto.Visibility != null) entity.Visibility = dto.Visibility.Value;
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileCertificates(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Certificate updated."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> DeleteCertificateAsync(Guid accountId, Guid certId)
+    {
+        var entity = await _context.Certificates.FirstOrDefaultAsync(c => c.Id == certId && c.ProfileId == accountId);
+        if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
+
+        _context.Certificates.Remove(entity);
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileCertificates(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Certificate deleted."));
+    }
+
+    // ==========================================
+    // Sponsorships
+    // ==========================================
+
+    public async Task<ApiResponse<IEnumerable<SponsorshipItemDto>>> GetSponsorshipsAsync(Guid profileId, bool publicOnly = false)
+    {
+        var cacheKey = CacheKeys.ProfileSponsorships(profileId);
+        
+        var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            return await _context.SponsorshipItems
+                .AsNoTracking()
+                .Where(s => s.ProfileId == profileId)
+                .OrderBy(s => s.DisplayOrder)
+                .Select(s => new SponsorshipItemDto
+                {
+                    Id = s.Id,
+                    Platform = s.Platform,
+                    Url = s.Url,
+                    Icon = new AssetDto { Type = s.Icon.Type, Value = s.Icon.Value, Tag = s.Icon.Tag },
+                    QrCode = new AssetDto { Type = s.QrCode.Type, Value = s.QrCode.Value, Tag = s.QrCode.Tag },
+                    DisplayOrder = s.DisplayOrder,
+                    Visibility = s.Visibility
+                })
+                .ToListAsync();
+        }, tags: [cacheKey]);
+
+        if (list != null && publicOnly)
+        {
+            list = list.Where(s => s.Visibility == Visibility.Public).ToList();
+        }
+
+        return ApiResponse<IEnumerable<SponsorshipItemDto>>.Success(list ?? new List<SponsorshipItemDto>());
+    }
+
+    public async Task<ApiResponse<MessageResponse>> AddSponsorshipAsync(Guid accountId, UpdateSponsorshipItemRequestDto dto)
+    {
+        var entity = new SponsorshipItem
+        {
+            ProfileId = accountId,
+            Platform = dto.Platform,
+            Url = dto.Url,
+            DisplayOrder = dto.DisplayOrder ?? 0,
+            Visibility = dto.Visibility ?? Visibility.Public,
+            Icon = dto.Icon != null ? new Asset { Type = dto.Icon.Type, Value = dto.Icon.Value, Tag = dto.Icon.Tag } : new Asset(),
+            QrCode = dto.QrCode != null ? new Asset { Type = dto.QrCode.Type, Value = dto.QrCode.Value, Tag = dto.QrCode.Tag } : new Asset()
+        };
+
+        _context.SponsorshipItems.Add(entity);
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileSponsorships(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Sponsorship added."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> UpdateSponsorshipAsync(Guid accountId, Guid itemId, UpdateSponsorshipItemRequestDto dto)
+    {
+        var entity = await _context.SponsorshipItems.FirstOrDefaultAsync(s => s.Id == itemId && s.ProfileId == accountId);
+        if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
+
+        if (dto.Platform != null) entity.Platform = dto.Platform;
+        if (dto.Url != null) entity.Url = dto.Url;
+        if (dto.DisplayOrder != null) entity.DisplayOrder = dto.DisplayOrder.Value;
+        if (dto.Visibility != null) entity.Visibility = dto.Visibility.Value;
+        
+        if (dto.Icon != null)
+            entity.Icon = new Asset { Type = dto.Icon.Type, Value = dto.Icon.Value, Tag = dto.Icon.Tag };
+        
+        if (dto.QrCode != null)
+            entity.QrCode = new Asset { Type = dto.QrCode.Type, Value = dto.QrCode.Value, Tag = dto.QrCode.Tag };
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileSponsorships(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Sponsorship updated."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> DeleteSponsorshipAsync(Guid accountId, Guid itemId)
+    {
+        var entity = await _context.SponsorshipItems.FirstOrDefaultAsync(s => s.Id == itemId && s.ProfileId == accountId);
+        if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
+
+        _context.SponsorshipItems.Remove(entity);
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileSponsorships(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Sponsorship deleted."));
+    }
+
+    // ==========================================
+    // Gallery
+    // ==========================================
+
+    public async Task<ApiResponse<IEnumerable<GalleryItemDto>>> GetGalleryAsync(Guid profileId, bool publicOnly = false)
+    {
+        var cacheKey = CacheKeys.ProfileGallery(profileId);
+        
+        var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            return await _context.GalleryItems
+                .AsNoTracking()
+                .Where(g => g.ProfileId == profileId)
+                .OrderBy(g => g.DisplayOrder)
+                .Select(g => new GalleryItemDto
+                {
+                    Id = g.Id,
+                    Image = new AssetDto { Type = g.Image.Type, Value = g.Image.Value, Tag = g.Image.Tag },
+                    Caption = g.Caption,
+                    ActionUrl = g.ActionUrl,
+                    DisplayOrder = g.DisplayOrder,
+                    Visibility = g.Visibility
+                })
+                .ToListAsync();
+        }, tags: [cacheKey]);
+
+        if (list != null && publicOnly)
+        {
+            list = list.Where(g => g.Visibility == Visibility.Public).ToList();
+        }
+
+        return ApiResponse<IEnumerable<GalleryItemDto>>.Success(list ?? new List<GalleryItemDto>());
+    }
+
+    public async Task<ApiResponse<MessageResponse>> AddGalleryItemAsync(Guid accountId, UpdateGalleryItemRequestDto dto)
+    {
+        if (dto.Image == null) return ApiResponse<MessageResponse>.Failure("Image is required.");
+
+        var entity = new GalleryItem
+        {
+            ProfileId = accountId,
+            Image = new Asset { Type = dto.Image.Type, Value = dto.Image.Value, Tag = dto.Image.Tag },
+            Caption = dto.Caption,
+            ActionUrl = dto.ActionUrl,
+            DisplayOrder = dto.DisplayOrder ?? 0,
+            Visibility = dto.Visibility ?? Visibility.Public
+        };
+
+        _context.GalleryItems.Add(entity);
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileGallery(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Gallery item added."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> UpdateGalleryItemAsync(Guid accountId, Guid itemId, UpdateGalleryItemRequestDto dto)
+    {
+        var entity = await _context.GalleryItems.FirstOrDefaultAsync(g => g.Id == itemId && g.ProfileId == accountId);
+        if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
+
+        if (dto.Caption != null) entity.Caption = dto.Caption;
+        if (dto.ActionUrl != null) entity.ActionUrl = dto.ActionUrl;
+        if (dto.DisplayOrder != null) entity.DisplayOrder = dto.DisplayOrder.Value;
+        if (dto.Visibility != null) entity.Visibility = dto.Visibility.Value;
+        
+        if (dto.Image != null)
+            entity.Image = new Asset { Type = dto.Image.Type, Value = dto.Image.Value, Tag = dto.Image.Tag };
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileGallery(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Gallery item updated."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> DeleteGalleryItemAsync(Guid accountId, Guid itemId)
+    {
+        var entity = await _context.GalleryItems.FirstOrDefaultAsync(g => g.Id == itemId && g.ProfileId == accountId);
+        if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
+
+        _context.GalleryItems.Remove(entity);
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileGallery(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Gallery item deleted."));
+    }
 }

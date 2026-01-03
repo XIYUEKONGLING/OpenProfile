@@ -152,4 +152,97 @@ public class ProfileDetailsController : ControllerBase
         var result = await _detailService.DeleteSocialAsync(GetUserId(), id);
         return result.Status ? Ok(result) : NotFound(result);
     }
+    
+    // ==========================================
+    // Certificates
+    // ==========================================
+
+    [HttpGet("certificates")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<CertificateDto>>>> GetCertificates()
+    {
+        return Ok(await _detailService.GetCertificatesAsync(GetUserId(), publicOnly: false));
+    }
+
+    [HttpPost("certificates")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddCertificate([FromBody] UpdateCertificateRequestDto dto)
+    {
+        var result = await _detailService.AddCertificateAsync(GetUserId(), dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("certificates/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateCertificate(Guid id, [FromBody] UpdateCertificateRequestDto dto)
+    {
+        var result = await _detailService.UpdateCertificateAsync(GetUserId(), id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("certificates/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteCertificate(Guid id)
+    {
+        var result = await _detailService.DeleteCertificateAsync(GetUserId(), id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
+
+    // ==========================================
+    // Sponsorships
+    // ==========================================
+
+    [HttpGet("sponsorships")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<SponsorshipItemDto>>>> GetSponsorships()
+    {
+        return Ok(await _detailService.GetSponsorshipsAsync(GetUserId(), publicOnly: false));
+    }
+
+    [HttpPost("sponsorships")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddSponsorship([FromBody] UpdateSponsorshipItemRequestDto dto)
+    {
+        var result = await _detailService.AddSponsorshipAsync(GetUserId(), dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("sponsorships/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateSponsorship(Guid id, [FromBody] UpdateSponsorshipItemRequestDto dto)
+    {
+        var result = await _detailService.UpdateSponsorshipAsync(GetUserId(), id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("sponsorships/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteSponsorship(Guid id)
+    {
+        var result = await _detailService.DeleteSponsorshipAsync(GetUserId(), id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
+
+    // ==========================================
+    // Gallery
+    // ==========================================
+
+    [HttpGet("gallery")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<GalleryItemDto>>>> GetGallery()
+    {
+        return Ok(await _detailService.GetGalleryAsync(GetUserId(), publicOnly: false));
+    }
+
+    [HttpPost("gallery")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddGalleryItem([FromBody] UpdateGalleryItemRequestDto dto)
+    {
+        var result = await _detailService.AddGalleryItemAsync(GetUserId(), dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("gallery/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateGalleryItem(Guid id, [FromBody] UpdateGalleryItemRequestDto dto)
+    {
+        var result = await _detailService.UpdateGalleryItemAsync(GetUserId(), id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("gallery/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteGalleryItem(Guid id)
+    {
+        var result = await _detailService.DeleteGalleryItemAsync(GetUserId(), id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
 }

@@ -7,8 +7,8 @@ using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Core;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Settings;
-using OpenProfileServer.Models.Entities.Profiles;
-using OpenProfileServer.Models.Entities.Settings;
+using OpenProfileServer.Models.DTOs.Social;
+using OpenProfileServer.Models.Entities.Auth;
 using OpenProfileServer.Models.Enums;
 using OpenProfileServer.Models.ValueObjects;
 using OpenProfileServer.Utilities;
@@ -21,17 +21,25 @@ public class AccountService : IAccountService
     private readonly ApplicationDbContext _context;
     private readonly IFusionCache _cache;
     private readonly IAuthService _authService;
+    private readonly IVerificationService _verificationService;
+    private readonly ISocialService _socialService;
 
     public AccountService(
         ApplicationDbContext context, 
         IFusionCache cache, 
-        IAuthService authService)
+        IAuthService authService,
+        IVerificationService verificationService,
+        ISocialService socialService)
     {
         _context = context;
         _cache = cache;
         _authService = authService;
+        _verificationService = verificationService;
+        _socialService = socialService;
     }
 
+    // ... [Existing Methods: GetMyAccountAsync, GetMyPermissionsAsync, Settings, Profile, Password, Deletion remain unchanged] ...
+    
     public async Task<ApiResponse<AccountDto>> GetMyAccountAsync(Guid accountId)
     {
         var account = await _context.Accounts
@@ -116,7 +124,6 @@ public class AccountService : IAccountService
 
         await _context.SaveChangesAsync();
         
-        // Invalidate settings cache
         await _cache.RemoveAsync(CacheKeys.AccountSettings(accountId));
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated successfully."));
@@ -124,8 +131,6 @@ public class AccountService : IAccountService
 
     public async Task<ApiResponse<ProfileDto>> GetMyProfileAsync(Guid accountId)
     {
-        // For "Edit Mode", we shouldn't rely heavily on the public cache, 
-        // as we want to see the latest version immediately.
         var profile = await _context.PersonalProfiles
             .Include(p => p.Account)
             .AsNoTracking()
@@ -160,7 +165,6 @@ public class AccountService : IAccountService
         var profile = await _context.PersonalProfiles.FirstOrDefaultAsync(p => p.Id == accountId);
         if (profile == null) return ApiResponse<MessageResponse>.Failure("Profile not found.");
 
-        // Map updates
         if (dto.DisplayName != null) profile.DisplayName = dto.DisplayName;
         if (dto.Description != null) profile.Description = dto.Description;
         if (dto.Content != null) profile.Content = dto.Content;
@@ -186,7 +190,6 @@ public class AccountService : IAccountService
 
         await _context.SaveChangesAsync();
         
-        // Invalidate public profile cache
         await _cache.RemoveAsync(CacheKeys.AccountProfile(accountId));
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Profile updated successfully."));
@@ -197,13 +200,11 @@ public class AccountService : IAccountService
         var credential = await _context.AccountCredentials.FirstOrDefaultAsync(c => c.AccountId == accountId);
         if (credential == null) return ApiResponse<MessageResponse>.Failure("Account credentials not found.");
 
-        // Verify old
         if (!CryptographyProvider.Verify(dto.OldPassword, credential.PasswordHash, credential.PasswordSalt))
         {
             return ApiResponse<MessageResponse>.Failure("Current password is incorrect.");
         }
 
-        // Set new
         var (hash, salt) = CryptographyProvider.CreateHash(dto.NewPassword);
         credential.PasswordHash = hash;
         credential.PasswordSalt = salt;
@@ -211,7 +212,6 @@ public class AccountService : IAccountService
 
         await _context.SaveChangesAsync();
 
-        // Optional: Logout other devices for security
         await _authService.LogoutAllDevicesAsync(accountId);
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Password changed successfully. All other sessions have been revoked."));
@@ -227,7 +227,6 @@ public class AccountService : IAccountService
             return ApiResponse<MessageResponse>.Failure("This account is banned and cannot be self-deleted.");
         }
 
-        // Set to PendingDeletion (Cooling-off period)
         account.Status = AccountStatus.PendingDeletion;
         await _context.SaveChangesAsync();
         
@@ -247,12 +246,125 @@ public class AccountService : IAccountService
             return ApiResponse<MessageResponse>.Failure("Account is not in a state that requires restoration.");
         }
         
-        // Restore to Active
         account.Status = AccountStatus.Active;
         await _context.SaveChangesAsync();
         
         await _cache.RemoveAsync(CacheKeys.AccountProfile(accountId));
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Account restored successfully."));
+    }
+
+    // ==========================================
+    // Email Management
+    // ==========================================
+
+    public async Task<ApiResponse<IEnumerable<AccountEmailDto>>> GetEmailsAsync(Guid accountId)
+    {
+        var emails = await _context.AccountEmails
+            .AsNoTracking()
+            .Where(e => e.AccountId == accountId)
+            .OrderByDescending(e => e.IsPrimary)
+            .ThenBy(e => e.CreatedAt)
+            .Select(e => new AccountEmailDto
+            {
+                Id = e.Id,
+                Email = e.Email,
+                IsPrimary = e.IsPrimary,
+                IsVerified = e.IsVerified,
+                CreatedAt = e.CreatedAt
+            })
+            .ToListAsync();
+
+        return ApiResponse<IEnumerable<AccountEmailDto>>.Success(emails);
+    }
+
+    public async Task<ApiResponse<MessageResponse>> AddEmailAsync(Guid accountId, AddEmailRequestDto dto)
+    {
+        if (await _context.AccountEmails.AnyAsync(e => e.Email == dto.Email))
+            return ApiResponse<MessageResponse>.Failure("Email is already in use.");
+
+        var account = await _context.Accounts.FindAsync(accountId);
+        if (account == null) return ApiResponse<MessageResponse>.Failure("Account not found.");
+
+        var email = new AccountEmail
+        {
+            AccountId = accountId,
+            Email = dto.Email,
+            IsPrimary = false,
+            IsVerified = false,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.AccountEmails.Add(email);
+        await _context.SaveChangesAsync();
+
+        // Send verification code
+        await _verificationService.GenerateAndSendCodeAsync(dto.Email, VerificationType.VerifyEmail, account.AccountName);
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email added. Please verify it."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> SetPrimaryEmailAsync(Guid accountId, string email)
+    {
+        var targetEmail = await _context.AccountEmails
+            .FirstOrDefaultAsync(e => e.AccountId == accountId && e.Email == email);
+
+        if (targetEmail == null) return ApiResponse<MessageResponse>.Failure("Email not found.");
+
+        if (!targetEmail.IsVerified)
+            return ApiResponse<MessageResponse>.Failure("Only verified emails can be set as primary.");
+
+        var currentPrimary = await _context.AccountEmails
+            .FirstOrDefaultAsync(e => e.AccountId == accountId && e.IsPrimary);
+
+        if (currentPrimary != null) currentPrimary.IsPrimary = false;
+        targetEmail.IsPrimary = true;
+
+        await _context.SaveChangesAsync();
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Primary email updated."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> DeleteEmailAsync(Guid accountId, string email)
+    {
+        var targetEmail = await _context.AccountEmails
+            .FirstOrDefaultAsync(e => e.AccountId == accountId && e.Email == email);
+
+        if (targetEmail == null) return ApiResponse<MessageResponse>.Failure("Email not found.");
+
+        if (targetEmail.IsPrimary)
+            return ApiResponse<MessageResponse>.Failure("Cannot delete primary email. Set another email as primary first.");
+
+        _context.AccountEmails.Remove(targetEmail);
+        await _context.SaveChangesAsync();
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email removed."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> VerifyEmailAsync(Guid accountId, string email, VerifyEmailRequestDto dto)
+    {
+        var targetEmail = await _context.AccountEmails
+            .FirstOrDefaultAsync(e => e.AccountId == accountId && e.Email == email);
+
+        if (targetEmail == null) return ApiResponse<MessageResponse>.Failure("Email not found.");
+
+        if (targetEmail.IsVerified) return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email already verified."));
+
+        var isValid = await _verificationService.ValidateCodeAsync(email, VerificationType.VerifyEmail, dto.Code);
+        if (!isValid) return ApiResponse<MessageResponse>.Failure("Invalid or expired verification code.");
+
+        targetEmail.IsVerified = true;
+        targetEmail.VerifiedAt = DateTime.UtcNow;
+        await _context.SaveChangesAsync();
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email verified successfully."));
+    }
+
+    // ==========================================
+    // Block Management
+    // ==========================================
+
+    public async Task<ApiResponse<IEnumerable<BlockDto>>> GetMyBlockedUsersAsync(Guid accountId)
+    {
+        return await _socialService.GetBlockedUsersAsync(accountId);
     }
 }
