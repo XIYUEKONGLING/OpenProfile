@@ -4,6 +4,7 @@ using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Core;
+using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Profile.Details;
 using OpenProfileServer.Models.Entities.Details;
@@ -24,8 +25,6 @@ public class ProfileDetailService : IProfileDetailService
         _context = context;
         _cache = cache;
     }
-
-    // ... [Existing Methods: Work, Education, Projects, Socials, Memberships remain unchanged] ...
     
     public async Task<ApiResponse<IEnumerable<WorkExperienceDto>>> GetWorkAsync(Guid profileId, bool publicOnly = false)
     {
@@ -388,6 +387,39 @@ public class ProfileDetailService : IProfileDetailService
 
         return ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>.Success(list ?? new List<PublicOrganizationMembershipDto>());
     }
+
+    public async Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> GetPublicOrgMembersAsync(Guid orgId)
+    {
+        var cacheKey = CacheKeys.OrganizationMembers(orgId);
+
+        var members = await _cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            return await _context.OrganizationMembers
+                .AsNoTracking()
+                .Where(m => m.OrganizationId == orgId && m.Visibility == Visibility.Public)
+                .Include(m => m.Account).ThenInclude(a => a.Profile)
+                .Where(m => m.Account.Status == AccountStatus.Active)
+                .Select(m => new OrganizationMemberDto
+                {
+                    AccountId = m.AccountId,
+                    AccountName = m.Account.AccountName,
+                    DisplayName = m.Account.Profile != null ? m.Account.Profile.DisplayName : "",
+                    Avatar = m.Account.Profile != null ? new Models.DTOs.Core.AssetDto 
+                    { 
+                        Type = m.Account.Profile.Avatar.Type, 
+                        Value = m.Account.Profile.Avatar.Value 
+                    } : new Models.DTOs.Core.AssetDto(),
+                    Role = m.Role,
+                    Title = m.Title,
+                    Visibility = m.Visibility,
+                    JoinedAt = m.JoinedAt
+                })
+                .ToListAsync();
+        }, tags: [cacheKey]);
+
+        return ApiResponse<IEnumerable<OrganizationMemberDto>>.Success(members ?? new List<OrganizationMemberDto>());
+    }
+
 
     // ==========================================
     // Certificates

@@ -1,4 +1,5 @@
 using OpenProfileServer.Models.DTOs.Common;
+using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Profile.Details;
 
@@ -30,7 +31,11 @@ public interface IProfileDetailService
     Task<ApiResponse<MessageResponse>> UpdateSocialAsync(Guid accountId, Guid linkId, UpdateSocialLinkRequestDto dto);
     Task<ApiResponse<MessageResponse>> DeleteSocialAsync(Guid accountId, Guid linkId);
     
+    // Memberships (User -> Orgs)
     Task<ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>> GetPublicMembershipsAsync(Guid profileId);
+    
+    // Members (Org -> Users)
+    Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> GetPublicOrgMembersAsync(Guid orgId);
 
     // Certificates
     Task<ApiResponse<IEnumerable<CertificateDto>>> GetCertificatesAsync(Guid profileId, bool publicOnly = false);
