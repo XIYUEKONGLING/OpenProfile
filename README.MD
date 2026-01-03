@@ -2,7 +2,7 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
-[![Build Status](https://img.shields.io/badge/status-early__development-orange.svg)](https://github.com/yourusername/OpenProfileServer)
+[![Build Status](https://img.shields.io/badge/Status-Active__Development-green.svg)](https://github.com/yourusername/OpenProfileServer)
 
 **OpenProfileServer** is a backend system designed for electronic business cards and digital identity management. It supports rich data structures including work history, education, social links, and certifications.
 
@@ -11,16 +11,21 @@ The project provides two distinct deployment strategies: a **Dynamic API** for f
 ## 🚀 Key Features
 
 -   **Multi-Account Support**: Distinct profiles for **Personal** and **Organization** accounts using Entity Framework Core TPT (Table-Per-Type) inheritance.
+-   **Advanced Organization Management**:
+    -   Create and manage organizations with distinct profiles.
+    -   Role-based member management (Owner, Admin, Member).
+    -   Invitation system (Send, Accept, Revoke) for adding new members.
 -   **Rich Profile Data**: Comprehensive support for assets, work experience, education, galleries, projects, and sponsorship links.
 -   **Dual Deployment Modes**:
     -   **Dynamic Mode**: Full API with Authentication, Registration, and Admin capabilities.
     -   **Static Mode**: Generates a directory of JSON DTOs mirroring the API structure for deployment on Cloudflare Pages, GitHub Pages, etc.
--   **Smart Frontend Detection**: The frontend automatically detects the backend type (Static vs. Dynamic) and enables/disables features (like Login) accordingly.
--   **Advanced Security**:
+-   **Robust Authentication & Security**:
     -   **Argon2id** hashing for password storage (via BouncyCastle).
-    -   JWT-based authentication with refresh tokens.
-    -   Built-in Rate Limiting (Sliding Window, Fixed Window, Token Bucket).
+    -   JWT-based authentication with **SecurityStamp** validation (supports "Logout All Devices").
+    -   Optional **Email Verification** system (Registration, Password Reset, Email Binding).
+    -   Built-in **Rate Limiting** policies (Strict limits for Login/Register, sliding windows for general API).
 -   **High-Performance Caching**: Integrated **FusionCache** with support for Memory and Redis (L2 Cache + Backplane).
+-   **Smart Frontend Detection**: The frontend automatically detects the backend type (Static vs. Dynamic) and enables/disables features (like Login) accordingly.
 -   **Flexible Database**: Support for SQLite (Development), PostgreSQL, and MySQL.
 
 ## 🏗️ Architecture
@@ -40,19 +45,13 @@ A console application tool.
 -   **Output**: Generates a complete directory structure of **JSON DTOs** that exactly mirrors the API's response format.
 -   **Usage**: Run this after you finish editing your profile. Upload the output to a static host.
 
-### Frontend Behavior
-The frontend client performs an automatic check against the backend to determine:
-1.  **Is it a Static Pseudo-Backend?** (Checks if responses are served as static files).
-2.  **Does it support Dynamic Features?** (Checks for API availability).
-
-Based on these indicators, the frontend UI adapts—hiding login buttons in Static mode or enabling admin panels in Dynamic mode.
-
 ## 🛠️ Tech Stack
 
 -   **Framework**: ASP.NET Core 10.0
 -   **ORM**: Entity Framework Core
--   **Caching**: FusionCache (ZiggyCreatures)
+-   **Caching**: FusionCache (ZiggyCreatures) + StackExchange.Redis
 -   **Security**: BouncyCastle (Cryptography), System.IdentityModel.Tokens.Jwt
+-   **Email**: MailKit
 -   **API Documentation**: Swagger (OpenAPI)
 
 ## 📋 Prerequisites
@@ -62,12 +61,14 @@ Based on these indicators, the frontend UI adapts—hiding login buttons in Stat
 
 ## ⚙️ Configuration
 
-Both the Server and the Generator rely on `appsettings.json` for configuration.
+Both the Server and the Generator rely on `appsettings.json` for configuration. The application validates configuration on startup.
 
 -   **DatabaseSettings**: Configure the connection string and provider (SQLite, PgSQL, MySQL).
 -   **Security**: Define the Root account credentials and JWT signing secrets.
--   **Cache**: Toggle Redis support and set expiration policies.
+-   **Email**: (Optional) Configure SMTP settings for verification codes.
+-   **Cache**: Toggle Redis support, L1/L2 options, and set expiration policies.
 -   **RateLimiting**: Define custom throttling policies for different endpoints.
+-   **Storage**: Configure upload limits and allowed MIME types.
 
 *Note: Never commit secrets to version control. Use `appsettings.Development.json` for local overrides.*
 
@@ -112,14 +113,14 @@ docker run -p 8080:8080 openprofile-server
 
 ## 📊 Development Status
 
-**Current Phase: Early Development (Alpha)**
+**Current Phase: Alpha**
 
-The project is currently in the initial design and implementation phase. The core data models, authentication layer, and database context are established.
+The core data models, authentication layer, business logic, and database context are established.
 
 ### Roadmap
 
 -   [x] Core Entity Models (Account, Profile, Settings...)
--   [ ] Complete implementation of Dynamic API Controllers
+-   [x] **Dynamic API Implementation** (Auth, Profiles, Organizations, Admin, Social)
 -   [ ] **Implementation of Static Generator (Export Logic)**
 -   [ ] Frontend Client
 
@@ -132,3 +133,4 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
 
 See the [LICENSE](LICENSE) file for details.
+```
