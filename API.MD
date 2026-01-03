@@ -31,13 +31,14 @@ The API response and Static Generator behavior depend on the `AccountStatus`.
 
 ## 2. Server & Meta (Public)
 
-These endpoints provide information about the server instance and site branding (Logo, Name, Copyright).
+These endpoints provide information about the server instance, enabled features, and site branding.
 
 | Method | Endpoint | Description | Static File |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api` | Get combined server info and site metadata. | `api/index.json` |
+| **GET** | `/api` | Get combined server info, features, and site metadata. | `api/index.json` |
 | **GET** | `/api/info` | Get standalone server version and mode. | `api/info.json` |
 | **GET** | `/api/meta` | Get standalone site branding metadata. | `api/meta.json` |
+| **GET** | `/api/features` | **NEW** Get server feature flags (Email enabled, Registration allowed, etc.). | `api/features.json` |
 
 ### 2.1 Admin Management (Protected)
 
@@ -55,7 +56,7 @@ Manage site branding (Site Name, Description, Logo, etc.).
 Authentication and Registration flow with mandatory email verification support.
 
 ### 3.1 Flow Logic
-1.  **Check Configuration**: Call `GET /api/auth/config` to check `RegistrationRequiresEmail`.
+1.  **Check Configuration**: Call `GET /api/features` (or auth config) to check `EmailVerification`.
 2.  **Request Code (If required)**: If `true`, call `POST /api/auth/send-code` with `{ email, type: 0 }`.
 3.  **Register**: Call `POST /api/auth/register` including the `code`. The account is created as **Verified** and **Logged In** atomically.
 
