@@ -78,8 +78,8 @@ When User A calls `POST .../block` to block User B:
 ### 4.3 Static Generation Privacy
 - **Status Filtering**: When generating `followers.json` or `following.json`, users with `Status != Active` must be filtered out.
 - **Privacy Settings**:
-  - If `AccountSettings.ShowFollowersList == false`, the generator should produce an empty array `[]` (instead of 404) to maintain frontend consistency.
-  - The same logic applies to `following.json`.
+    - If `AccountSettings.ShowFollowersList == false`, the generator should produce an empty array `[]` (instead of 404) to maintain frontend consistency.
+    - The same logic applies to `following.json`.
 
 ---
 
@@ -170,13 +170,15 @@ Independent of email system. Used for in-app alerts and announcements.
 
 ## 7. Organization Management (Dynamic / Protected)
 
+Standard logic for users and owners. Admin overrides are handled in Section 8.
+
 ### 7.1 Lifecycle
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs` | List my organizations. | User |
 | **POST** | `/api/orgs` | Create new organization. | User |
 | **DELETE** | `/api/orgs/{org}` | **Request Dissolution** (Forbidden if Banned). | **Owner** |
-| **POST** | `/api/orgs/{org}/restore` | **Restore Organization**. | **Owner** |
+| **POST** | `/api/orgs/{org}/restore` | **Restore Organization** (Cancel dissolution). | **Owner** |
 
 ### 7.2 Settings & Profile
 | Method | Endpoint | Description | Permission |
@@ -214,12 +216,23 @@ Independent of email system. Used for in-app alerts and announcements.
 
 ## 8. System Administration (Dynamic / Protected)
 
+Admins can perform operations that bypass standard checks (e.g., inviting users without acceptance, kicking owners).
+
+### 8.1 User & Account Management
 | Method | Endpoint | Description | Permission | Query Params |
 | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/admin/users` | List users with pagination. | Admin+ | `page`, `pageSize`, `search`, `status`, `role` |
-| **POST** | `/api/admin/users` | Force create user/org. | Admin+ | |
+| **POST** | `/api/admin/users` | Force create user/org. **If creating an Org, it is created EMPTY (no members).** | Admin+ | |
 | **PATCH** | `/api/admin/users/{user}/status` | Change status (Active/Suspended/Banned). | Admin+ | |
 | **DELETE** | `/api/admin/users/{user}` | **Physical Delete** (No cooling-off). | **Root**/Admin | |
 | **POST** | `/api/admin/users/{user}/role` | Promote/Demote system role. | **Root** | |
 
+### 8.2 Organization Administration (Force Actions)
+These endpoints allow Admins to manage organization members directly, bypassing invitations and standard role restrictions.
 
+| Method | Endpoint | Description | Permission |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/admin/orgs/{org}/members` | **List Members** (Visible even if Org/Members are private). | Admin+ |
+| **POST** | `/api/admin/orgs/{org}/members` | **Force Add Member**. Adds user immediately (Bypasses invitation). | Admin+ |
+| **PATCH** | `/api/admin/orgs/{org}/members/{user}` | **Force Update Member**. Change Role/Title (Can promote to Owner). | Admin+ |
+| **DELETE** | `/api/admin/orgs/{org}/members/{user}` | **Force Kick Member**. Can kick anyone including Owners. | Admin+ |
