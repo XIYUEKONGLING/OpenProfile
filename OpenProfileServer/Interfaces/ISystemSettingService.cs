@@ -1,3 +1,5 @@
+using OpenProfileServer.Models.DTOs.Admin;
+
 namespace OpenProfileServer.Interfaces;
 
 public interface ISystemSettingService
@@ -17,4 +19,6 @@ public interface ISystemSettingService
     /// Serializes an object to JSON and saves it as a setting value.
     /// </summary>
     Task SetObjectAsync<T>(string key, T value, string? description = null) where T : class;
+    
+    Task<IEnumerable<SystemSettingDto>> GetAllSettingsAsync();
 }

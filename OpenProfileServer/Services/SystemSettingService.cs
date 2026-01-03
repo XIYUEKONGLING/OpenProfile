@@ -3,6 +3,7 @@ using Newtonsoft.Json;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
+using OpenProfileServer.Models.DTOs.Admin;
 using OpenProfileServer.Models.Entities;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -40,7 +41,13 @@ public class SystemSettingService : ISystemSettingService
     {
         var value = await GetValueAsync(key);
         if (string.IsNullOrEmpty(value)) return defaultValue;
-        return bool.TryParse(value, out var result) ? result : defaultValue;
+        
+        // Handle "true"/"false" and "1"/"0"
+        if (bool.TryParse(value, out var result)) return result;
+        if (value == "1") return true;
+        if (value == "0") return false;
+        
+        return defaultValue;
     }
 
     public async Task<int> GetIntAsync(string key, int defaultValue = 0)
@@ -61,7 +68,6 @@ public class SystemSettingService : ISystemSettingService
         }
         catch (JsonException)
         {
-            // Log error in real implementation
             return null;
         }
     }
@@ -72,11 +78,13 @@ public class SystemSettingService : ISystemSettingService
 
         if (setting == null)
         {
+            // Usually we expect keys to be seeded, but we allow creating new ones dynamically if needed.
             setting = new SystemSetting
             {
                 Key = key,
                 Value = value,
                 Description = description,
+                ValueType = "string", // Default
                 UpdatedAt = DateTime.UtcNow
             };
             _context.SystemSettings.Add(setting);
@@ -90,14 +98,36 @@ public class SystemSettingService : ISystemSettingService
 
         await _context.SaveChangesAsync();
 
-        // Invalidate cache
-        var cacheKey = CacheKeys.SystemSetting(key);
-        await _cache.RemoveAsync(cacheKey);
+        // Invalidate specific key
+        await _cache.RemoveAsync(CacheKeys.SystemSetting(key));
+        // Invalidate the list cache as content changed
+        await _cache.RemoveAsync(CacheKeys.SystemSettingsList);
     }
 
     public async Task SetObjectAsync<T>(string key, T value, string? description = null) where T : class
     {
         var json = JsonConvert.SerializeObject(value);
         await SetValueAsync(key, json, description);
+    }
+
+    // [NEW] Implementation
+    public async Task<IEnumerable<SystemSettingDto>> GetAllSettingsAsync()
+    {
+        return await _cache.GetOrSetAsync(
+            CacheKeys.SystemSettingsList,
+            async _ => await _context.SystemSettings
+                .AsNoTracking()
+                .OrderBy(s => s.Key)
+                .Select(s => new SystemSettingDto
+                {
+                    Key = s.Key,
+                    Value = s.Value,
+                    Description = s.Description,
+                    ValueType = s.ValueType,
+                    UpdatedAt = s.UpdatedAt
+                })
+                .ToListAsync(),
+            tags: [CacheKeys.SystemSettingsList]
+        ) ?? new List<SystemSettingDto>();
     }
 }

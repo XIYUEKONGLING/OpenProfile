@@ -7,6 +7,8 @@ public static class CacheKeys
     // ==========================================
     
     public const string SiteMetadata = "Site:Metadata";
+    
+    public const string SystemSettingsList = "System:Settings:List";
 
     public static string SystemSetting(string key) => $"System:Setting:{key}";
     
