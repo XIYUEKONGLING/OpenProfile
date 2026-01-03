@@ -7,6 +7,7 @@ using OpenProfileServer.Models.DTOs.Core;
 using OpenProfileServer.Models.DTOs.Profile.Details;
 using OpenProfileServer.Models.Entities.Details;
 using OpenProfileServer.Models.Entities.Profiles;
+using OpenProfileServer.Models.Enums;
 using OpenProfileServer.Models.ValueObjects;
 using ZiggyCreatures.Caching.Fusion;
 
@@ -27,7 +28,7 @@ public class ProfileDetailService : IProfileDetailService
     // Work Experience
     // ==========================================
 
-    public async Task<ApiResponse<IEnumerable<WorkExperienceDto>>> GetWorkAsync(Guid profileId)
+    public async Task<ApiResponse<IEnumerable<WorkExperienceDto>>> GetWorkAsync(Guid profileId, bool publicOnly = false)
     {
         var cacheKey = CacheKeys.ProfileWork(profileId);
         
@@ -50,12 +51,16 @@ public class ProfileDetailService : IProfileDetailService
                 .ToListAsync();
         }, tags: [cacheKey]);
 
+        // Note: WorkExperience currently does not have a "Visibility" column in the Entity model provided.
+        // Assuming they are public by default if the profile is public.
+        // If Visibility was added to WorkExperience entity, we would filter here:
+        // if (publicOnly) return ApiResponse<...>.Success(list.Where(x => x.Visibility == Visibility.Public));
+
         return ApiResponse<IEnumerable<WorkExperienceDto>>.Success(list ?? new List<WorkExperienceDto>());
     }
 
     public async Task<ApiResponse<MessageResponse>> AddWorkAsync(Guid accountId, UpdateWorkExperienceRequestDto dto)
     {
-        // Ensure profile exists and matches type
         var isPersonal = await _context.PersonalProfiles.AnyAsync(p => p.Id == accountId);
         if (!isPersonal) return ApiResponse<MessageResponse>.Failure("Operation valid only for personal accounts.");
 
@@ -85,7 +90,7 @@ public class ProfileDetailService : IProfileDetailService
         entity.CompanyName = dto.CompanyName;
         if (dto.Position != null) entity.Position = dto.Position;
         if (dto.StartDate != null) entity.StartDate = dto.StartDate;
-        if (dto.EndDate != null) entity.EndDate = dto.EndDate; // Note: Frontend should send null explicitly to clear it
+        if (dto.EndDate != null) entity.EndDate = dto.EndDate;
         if (dto.Description != null) entity.Description = dto.Description;
         
         if (dto.Logo != null)
@@ -115,7 +120,7 @@ public class ProfileDetailService : IProfileDetailService
     // Education
     // ==========================================
 
-    public async Task<ApiResponse<IEnumerable<EducationExperienceDto>>> GetEducationAsync(Guid profileId)
+    public async Task<ApiResponse<IEnumerable<EducationExperienceDto>>> GetEducationAsync(Guid profileId, bool publicOnly = false)
     {
         var cacheKey = CacheKeys.ProfileEducation(profileId);
         
@@ -202,7 +207,7 @@ public class ProfileDetailService : IProfileDetailService
     // Projects
     // ==========================================
 
-    public async Task<ApiResponse<IEnumerable<ProjectDto>>> GetProjectsAsync(Guid profileId)
+    public async Task<ApiResponse<IEnumerable<ProjectDto>>> GetProjectsAsync(Guid profileId, bool publicOnly = false)
     {
         var cacheKey = CacheKeys.ProfileProjects(profileId);
         
@@ -226,6 +231,12 @@ public class ProfileDetailService : IProfileDetailService
                 .ToListAsync();
         }, tags: [cacheKey]);
 
+        // Filter Logic Implementation
+        if (list != null && publicOnly)
+        {
+            list = list.Where(p => p.Visibility == Visibility.Public).ToList();
+        }
+
         return ApiResponse<IEnumerable<ProjectDto>>.Success(list ?? new List<ProjectDto>());
     }
 
@@ -239,7 +250,7 @@ public class ProfileDetailService : IProfileDetailService
             Content = dto.Content,
             Url = dto.Url,
             DisplayOrder = dto.DisplayOrder ?? 0,
-            Visibility = dto.Visibility ?? Models.Enums.Visibility.Public,
+            Visibility = dto.Visibility ?? Visibility.Public,
             Logo = dto.Logo != null ? new Asset { Type = dto.Logo.Type, Value = dto.Logo.Value, Tag = dto.Logo.Tag } : new Asset()
         };
 

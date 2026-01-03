@@ -47,15 +47,12 @@ public class ProfileController : ControllerBase
     /// Get list of followers.
     /// </summary>
     [HttpGet("{profile}/followers")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowers(string profile, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowers(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
         if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
 
-        var filter = new PaginationFilter { PageNumber = page, PageSize = pageSize };
-        // Note: Real implementation should check Settings.ShowFollowersList here.
-        
-        return Ok(await _socialService.GetFollowersAsync(id.Value, filter));
+        return Ok(await _socialService.GetFollowersAsync(id.Value));
     }
 
     /// <summary>
@@ -63,17 +60,17 @@ public class ProfileController : ControllerBase
     /// Get list of following.
     /// </summary>
     [HttpGet("{profile}/following")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowing(string profile, [FromQuery] int page = 1, [FromQuery] int pageSize = 20)
+    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowing(string profile)
     {
         var id = await _profileService.ResolveIdAsync(profile);
         if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
 
-        var filter = new PaginationFilter { PageNumber = page, PageSize = pageSize };
-        // Note: Real implementation should check Settings.ShowFollowingList here.
-        
-        return Ok(await _socialService.GetFollowingAsync(id.Value, filter));
+        return Ok(await _socialService.GetFollowingAsync(id.Value));
     }
-    
+
+    // ==========================================
+    // Sub-Resources (Read-Only Public)
+    // ==========================================
     
     /// <summary>
     /// GET /api/profiles/{profile}/work
@@ -84,8 +81,7 @@ public class ProfileController : ControllerBase
         var id = await _profileService.ResolveIdAsync(profile);
         if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
 
-        // Note: Check visibility permissions here if needed (Public vs Private)
-        return Ok(await _detailService.GetWorkAsync(id.Value));
+        return Ok(await _detailService.GetWorkAsync(id.Value, publicOnly: true));
     }
 
     /// <summary>
@@ -97,7 +93,7 @@ public class ProfileController : ControllerBase
         var id = await _profileService.ResolveIdAsync(profile);
         if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
         
-        return Ok(await _detailService.GetEducationAsync(id.Value));
+        return Ok(await _detailService.GetEducationAsync(id.Value, publicOnly: true));
     }
 
     /// <summary>
@@ -108,17 +104,8 @@ public class ProfileController : ControllerBase
     {
         var id = await _profileService.ResolveIdAsync(profile);
         if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
-
-        var projects = await _detailService.GetProjectsAsync(id.Value);
         
-        // Filter out non-public projects if viewer is not allowed
-        // Simplified: Returning filtered list based on visibility logic (to be fully implemented)
-        if (projects.Data != null)
-        {
-             projects.Data = projects.Data.Where(p => p.Visibility == Models.Enums.Visibility.Public);
-        }
-
-        return Ok(projects);
+        return Ok(await _detailService.GetProjectsAsync(id.Value, publicOnly: true));
     }
 
     /// <summary>
@@ -132,5 +119,4 @@ public class ProfileController : ControllerBase
         
         return Ok(await _detailService.GetSocialsAsync(id.Value));
     }
-
 }

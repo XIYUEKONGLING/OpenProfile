@@ -35,7 +35,8 @@ public class ProfileDetailsController : ControllerBase
     [HttpGet("work")]
     public async Task<ActionResult<ApiResponse<IEnumerable<WorkExperienceDto>>>> GetWork()
     {
-        return Ok(await _detailService.GetWorkAsync(GetUserId()));
+        // Owner sees everything (publicOnly = false)
+        return Ok(await _detailService.GetWorkAsync(GetUserId(), publicOnly: false));
     }
 
     [HttpPost("work")]
@@ -66,7 +67,7 @@ public class ProfileDetailsController : ControllerBase
     [HttpGet("education")]
     public async Task<ActionResult<ApiResponse<IEnumerable<EducationExperienceDto>>>> GetEducation()
     {
-        return Ok(await _detailService.GetEducationAsync(GetUserId()));
+        return Ok(await _detailService.GetEducationAsync(GetUserId(), publicOnly: false));
     }
 
     [HttpPost("education")]
@@ -97,7 +98,7 @@ public class ProfileDetailsController : ControllerBase
     [HttpGet("projects")]
     public async Task<ActionResult<ApiResponse<IEnumerable<ProjectDto>>>> GetProjects()
     {
-        return Ok(await _detailService.GetProjectsAsync(GetUserId()));
+        return Ok(await _detailService.GetProjectsAsync(GetUserId(), publicOnly: false));
     }
 
     [HttpPost("projects")]
