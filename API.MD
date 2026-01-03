@@ -111,6 +111,7 @@ These endpoints are used by the Static Generator.
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/me` | Get full account details. | Owner |
+| **GET** | `/api/me/permissions` | **Get current Account's Role and Type**. | Owner |
 | **GET** | `/api/me/emails` | List all emails. | Owner |
 | **POST** | `/api/me/emails` | Add new email. | Owner |
 | **POST** | `/api/me/emails/{email}/primary` | Set as primary email. | Owner |
@@ -190,6 +191,7 @@ Independent of email system. Used for in-app alerts and announcements.
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs/{org}/members` | List all members. | Member+ |
+| **GET** | `/api/orgs/{org}/members/me/role` | **Get my Role in this organization**. | Member+ |
 | **POST** | `/api/orgs/{org}/members` | Invite/Add member. | **Admin+** |
 | **PATCH** | `/api/orgs/{org}/members/me` | Update my visibility/title. | Member+ |
 | **DELETE** | `/api/orgs/{org}/members/me` | Leave organization. | Member+ |
