@@ -31,7 +31,7 @@ The API response and Static Generator behavior depend on the `AccountStatus`.
 
 ## 2. Server & Meta (Public)
 
-These endpoints provide information about the server instance and site branding.
+These endpoints provide information about the server instance and site branding (Logo, Name, Copyright).
 
 | Method | Endpoint | Description | Static File |
 | :--- | :--- | :--- | :--- |
@@ -40,6 +40,8 @@ These endpoints provide information about the server instance and site branding.
 | **GET** | `/api/meta` | Get standalone site branding metadata. | `api/meta.json` |
 
 ### 2.1 Admin Management (Protected)
+
+Manage site branding (Site Name, Description, Logo, etc.).
 
 | Method | Endpoint | Description | Permission |
 | :--- | :--- | :--- | :--- |
@@ -78,8 +80,8 @@ When User A calls `POST .../block` to block User B:
 ### 4.3 Static Generation Privacy
 - **Status Filtering**: When generating `followers.json` or `following.json`, users with `Status != Active` must be filtered out.
 - **Privacy Settings**:
-    - If `AccountSettings.ShowFollowersList == false`, the generator should produce an empty array `[]` (instead of 404) to maintain frontend consistency.
-    - The same logic applies to `following.json`.
+  - If `AccountSettings.ShowFollowersList == false`, the generator should produce an empty array `[]` (instead of 404) to maintain frontend consistency.
+  - The same logic applies to `following.json`.
 
 ---
 
@@ -216,7 +218,7 @@ Standard logic for users and owners. Admin overrides are handled in Section 8.
 
 ## 8. System Administration (Dynamic / Protected)
 
-Admins can perform operations that bypass standard checks (e.g., inviting users without acceptance, kicking owners).
+Admins can perform operations that bypass standard checks (e.g., inviting users without acceptance, kicking owners) and manage global configuration.
 
 ### 8.1 User & Account Management
 | Method | Endpoint | Description | Permission | Query Params |
@@ -236,3 +238,12 @@ These endpoints allow Admins to manage organization members directly, bypassing 
 | **POST** | `/api/admin/orgs/{org}/members` | **Force Add Member**. Adds user immediately (Bypasses invitation). | Admin+ |
 | **PATCH** | `/api/admin/orgs/{org}/members/{user}` | **Force Update Member**. Change Role/Title (Can promote to Owner). | Admin+ |
 | **DELETE** | `/api/admin/orgs/{org}/members/{user}` | **Force Kick Member**. Can kick anyone including Owners. | Admin+ |
+
+### 8.3 System Configuration (Runtime)
+Manage dynamic system keys (e.g., `AllowRegistration`, `MaintenanceMode`, `Email:Template:*`).
+
+| Method | Endpoint | Description | Permission |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/admin/system-settings` | List all system configuration keys. | Admin+ |
+| **GET** | `/api/admin/system-settings/{key}` | Get specific setting value. | Admin+ |
+| **PUT** | `/api/admin/system-settings/{key}` | **Update** specific setting value. | Admin+ |
