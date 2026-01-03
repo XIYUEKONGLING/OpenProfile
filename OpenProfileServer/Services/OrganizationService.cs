@@ -147,6 +147,30 @@ public class OrganizationService : IOrganizationService
         return ApiResponse<IEnumerable<OrganizationDto>>.Success(list ?? new List<OrganizationDto>());
     }
 
+    public async Task<ApiResponse<OrganizationDto>> GetOrganizationAsync(Guid userId, Guid orgId)
+    {
+        var member = await _context.OrganizationMembers
+            .AsNoTracking()
+            .Include(m => m.Organization).ThenInclude(o => o.Account)
+            .FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+
+        if (member == null) return ApiResponse<OrganizationDto>.Failure("You are not a member of this organization.");
+
+        return ApiResponse<OrganizationDto>.Success(new OrganizationDto
+        {
+            Id = member.OrganizationId,
+            AccountName = member.Organization.Account.AccountName,
+            DisplayName = member.Organization.DisplayName,
+            Avatar = new Models.DTOs.Core.AssetDto 
+            { 
+                Type = member.Organization.Avatar.Type, 
+                Value = member.Organization.Avatar.Value 
+            },
+            Status = member.Organization.Account.Status,
+            MyRole = member.Role
+        });
+    }
+
     public async Task<ApiResponse<MessageResponse>> DeleteOrganizationAsync(Guid ownerId, Guid orgId)
     {
         var member = await _context.OrganizationMembers.FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == ownerId);
@@ -191,11 +215,36 @@ public class OrganizationService : IOrganizationService
         });
     }
 
+    // POST: Full Update
     public async Task<ApiResponse<MessageResponse>> UpdateOrgSettingsAsync(Guid userId, Guid orgId, UpdateOrganizationSettingsRequestDto dto)
     {
         var (member, settings) = await GetMemberAndSettingsAsync(userId, orgId);
 
         if (member == null || member.Role != MemberRole.Owner) // Only Owner can change critical settings
+            return ApiResponse<MessageResponse>.Failure("Only the Owner can update organization settings.");
+        
+        if (settings == null) return ApiResponse<MessageResponse>.Failure("Settings not found.");
+
+        settings.AllowFollowers = dto.AllowFollowers ?? true;
+        settings.ShowFollowingList = dto.ShowFollowingList ?? true;
+        settings.ShowFollowersList = dto.ShowFollowersList ?? true;
+        settings.Visibility = dto.Visibility ?? Visibility.Public;
+        settings.DefaultVisibility = dto.DefaultVisibility ?? Visibility.Public;
+        settings.DefaultMemberVisibility = dto.DefaultMemberVisibility ?? Visibility.Private;
+        settings.AllowMemberInvite = dto.AllowMemberInvite ?? false;
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.AccountSettings(orgId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated."));
+    }
+
+    // PATCH: Partial Update
+    public async Task<ApiResponse<MessageResponse>> PatchOrgSettingsAsync(Guid userId, Guid orgId, UpdateOrganizationSettingsRequestDto dto)
+    {
+        var (member, settings) = await GetMemberAndSettingsAsync(userId, orgId);
+
+        if (member == null || member.Role != MemberRole.Owner)
             return ApiResponse<MessageResponse>.Failure("Only the Owner can update organization settings.");
         
         if (settings == null) return ApiResponse<MessageResponse>.Failure("Settings not found.");
@@ -215,7 +264,42 @@ public class OrganizationService : IOrganizationService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated."));
     }
 
+    // POST: Full Update
     public async Task<ApiResponse<MessageResponse>> UpdateOrgProfileAsync(Guid userId, Guid orgId, UpdateProfileRequestDto dto)
+    {
+        var member = await _context.OrganizationMembers.FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+        if (member == null || (member.Role != MemberRole.Owner && member.Role != MemberRole.Admin))
+            return ApiResponse<MessageResponse>.Failure("Insufficient permissions.");
+
+        var profile = await _context.OrganizationProfiles
+            .Include(p => p.Account)
+            .FirstOrDefaultAsync(p => p.Id == orgId);
+        if (profile == null) return ApiResponse<MessageResponse>.Failure("Profile not found.");
+
+        // Full Update
+        profile.DisplayName = dto.DisplayName ?? profile.Account.AccountName;
+        profile.Description = dto.Description;
+        profile.Content = dto.Content;
+        profile.Location = dto.Location;
+        profile.Website = dto.Website;
+        profile.FoundedDate = dto.FoundedDate;
+
+        profile.Avatar = dto.Avatar != null 
+            ? new Asset { Type = dto.Avatar.Type, Value = dto.Avatar.Value, Tag = dto.Avatar.Tag } 
+            : new Asset();
+        
+        profile.Background = dto.Background != null 
+            ? new Asset { Type = dto.Background.Type, Value = dto.Background.Value, Tag = dto.Background.Tag } 
+            : new Asset();
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.AccountProfile(orgId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Profile updated."));
+    }
+
+    // PATCH: Partial Update
+    public async Task<ApiResponse<MessageResponse>> PatchOrgProfileAsync(Guid userId, Guid orgId, UpdateProfileRequestDto dto)
     {
         var member = await _context.OrganizationMembers.FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
         if (member == null || (member.Role != MemberRole.Owner && member.Role != MemberRole.Admin))
@@ -224,7 +308,6 @@ public class OrganizationService : IOrganizationService
         var profile = await _context.OrganizationProfiles.FirstOrDefaultAsync(p => p.Id == orgId);
         if (profile == null) return ApiResponse<MessageResponse>.Failure("Profile not found.");
 
-        // Update fields
         if (dto.DisplayName != null) profile.DisplayName = dto.DisplayName;
         if (dto.Description != null) profile.Description = dto.Description;
         if (dto.Content != null) profile.Content = dto.Content;
@@ -276,6 +359,42 @@ public class OrganizationService : IOrganizationService
             .ToListAsync();
 
         return ApiResponse<IEnumerable<OrganizationMemberDto>>.Success(members);
+    }
+
+    public async Task<ApiResponse<MemberRoleDto>> GetMyRoleAsync(Guid userId, Guid orgId)
+    {
+        var member = await _context.OrganizationMembers
+            .AsNoTracking()
+            .Include(m => m.Organization)
+            .FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+
+        if (member == null) return ApiResponse<MemberRoleDto>.Failure("Not a member.");
+
+        return ApiResponse<MemberRoleDto>.Success(new MemberRoleDto
+        {
+            OrganizationId = member.OrganizationId,
+            OrganizationName = member.Organization.DisplayName,
+            Role = member.Role,
+            Title = member.Title,
+            Visibility = member.Visibility
+        });
+    }
+
+    public async Task<ApiResponse<MessageResponse>> UpdateMyMemberDetailsAsync(Guid userId, Guid orgId, UpdateMemberRequestDto dto)
+    {
+        var member = await _context.OrganizationMembers
+            .FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+
+        if (member == null) return ApiResponse<MessageResponse>.Failure("Not a member.");
+
+        // Members can only update their own Title and Visibility, NOT Role.
+        if (dto.Title != null) member.Title = dto.Title;
+        if (dto.Visibility.HasValue) member.Visibility = dto.Visibility.Value;
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member details updated."));
     }
 
     public async Task<ApiResponse<MessageResponse>> InviteMemberAsync(Guid requesterId, Guid orgId, InviteMemberRequestDto dto)
@@ -345,12 +464,9 @@ public class OrganizationService : IOrganizationService
             {
                 Id = i.Id,
                 OrganizationId = i.OrganizationId,
-                // Org details usually known by context, but filling for consistency
                 OrganizationName = i.Organization.DisplayName, 
-                
                 InviterId = i.InviterId,
-                InviterName = i.Inviter.AccountName, // Or DisplayName
-                
+                InviterName = i.Inviter.AccountName,
                 InviteeId = i.InviteeId,
                 InviteeName = i.Invitee.AccountName,
                 InviteeAvatar = i.Invitee.Profile != null ? new Models.DTOs.Core.AssetDto 
@@ -367,7 +483,6 @@ public class OrganizationService : IOrganizationService
         return ApiResponse<IEnumerable<OrganizationInvitationDto>>.Success(list);
     }
 
-    
     public async Task<ApiResponse<MessageResponse>> RevokeInvitationAsync(Guid requesterId, Guid orgId, Guid invitationId)
     {
         var requester = await _context.OrganizationMembers.FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == requesterId);
@@ -400,7 +515,6 @@ public class OrganizationService : IOrganizationService
                     Type = i.Organization.Avatar.Type, 
                     Value = i.Organization.Avatar.Value 
                 },
-                
                 InviterId = i.InviterId,
                 InviterName = i.Inviter.Profile != null ? i.Inviter.Profile.DisplayName : i.Inviter.AccountName,
                 InviterAvatar = i.Inviter.Profile != null ? new Models.DTOs.Core.AssetDto
@@ -408,7 +522,6 @@ public class OrganizationService : IOrganizationService
                     Type = i.Inviter.Profile.Avatar.Type,
                     Value = i.Inviter.Profile.Avatar.Value
                 } : new Models.DTOs.Core.AssetDto(),
-                
                 InviteeId = i.InviteeId,
                 // Invitee is Me, no need to fill specific details usually
                 
@@ -425,7 +538,7 @@ public class OrganizationService : IOrganizationService
     public async Task<ApiResponse<MessageResponse>> RespondToInvitationAsync(Guid userId, Guid invitationId, bool accept)
     {
         var invitation = await _context.OrganizationInvitations
-            .Include(i => i.Organization) // Need org settings for default visibility
+            .Include(i => i.Organization)
             .FirstOrDefaultAsync(i => i.Id == invitationId && i.InviteeId == userId);
         
         if (invitation == null || invitation.Status != InvitationStatus.Pending)
@@ -460,7 +573,6 @@ public class OrganizationService : IOrganizationService
             );
             
             await _cache.RemoveAsync(CacheKeys.UserMemberships(userId));
-            // If user joined with public visibility default, we should invalidate public cache too
             await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId));
             
             return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Invitation accepted."));
@@ -537,8 +649,8 @@ public class OrganizationService : IOrganizationService
 
         _context.OrganizationMembers.Remove(member);
         await _context.SaveChangesAsync();
-        await _cache.RemoveAsync(CacheKeys.UserMemberships(userId)); // My private list
-        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId)); // My public list
+        await _cache.RemoveAsync(CacheKeys.UserMemberships(userId));
+        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId));
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Left organization."));
     }

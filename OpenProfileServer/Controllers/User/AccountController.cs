@@ -63,7 +63,7 @@ public class AccountController : ControllerBase
 
     /// <summary>
     /// POST /api/me/settings
-    /// Update settings (treated same as PATCH in this implementation for simplicity, but route exists for compatibility).
+    /// Full update settings.
     /// </summary>
     [HttpPost("settings")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateSettings([FromBody] UpdatePersonalSettingsRequestDto dto)
@@ -78,7 +78,7 @@ public class AccountController : ControllerBase
     [HttpPatch("settings")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchSettings([FromBody] UpdatePersonalSettingsRequestDto dto)
     {
-        return Ok(await _accountService.UpdateMySettingsAsync(GetUserId(), dto));
+        return Ok(await _accountService.PatchMySettingsAsync(GetUserId(), dto));
     }
 
     /// <summary>
@@ -93,7 +93,7 @@ public class AccountController : ControllerBase
 
     /// <summary>
     /// POST /api/me/profile
-    /// Full update profile (Logic shared with Patch).
+    /// Full update profile.
     /// </summary>
     [HttpPost("profile")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateProfile([FromBody] UpdateProfileRequestDto dto)
@@ -108,7 +108,7 @@ public class AccountController : ControllerBase
     [HttpPatch("profile")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchProfile([FromBody] UpdateProfileRequestDto dto)
     {
-        return Ok(await _accountService.UpdateMyProfileAsync(GetUserId(), dto));
+        return Ok(await _accountService.PatchMyProfileAsync(GetUserId(), dto));
     }
 
     /// <summary>

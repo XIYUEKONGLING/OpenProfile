@@ -38,8 +38,6 @@ public class AccountService : IAccountService
         _socialService = socialService;
     }
 
-    // ... [Existing Methods: GetMyAccountAsync, GetMyPermissionsAsync, Settings, Profile, Password, Deletion remain unchanged] ...
-    
     public async Task<ApiResponse<AccountDto>> GetMyAccountAsync(Guid accountId)
     {
         var account = await _context.Accounts
@@ -109,7 +107,28 @@ public class AccountService : IAccountService
         });
     }
 
+    // POST: Full Update (Replace all)
     public async Task<ApiResponse<MessageResponse>> UpdateMySettingsAsync(Guid accountId, UpdatePersonalSettingsRequestDto dto)
+    {
+        var settings = await _context.PersonalSettings.FirstOrDefaultAsync(s => s.Id == accountId);
+        if (settings == null) return ApiResponse<MessageResponse>.Failure("Settings not found.");
+
+        // Full update: Use default values if null
+        settings.AllowFollowers = dto.AllowFollowers ?? true;
+        settings.ShowFollowingList = dto.ShowFollowingList ?? true;
+        settings.ShowFollowersList = dto.ShowFollowersList ?? true;
+        settings.Visibility = dto.Visibility ?? Visibility.Public;
+        settings.DefaultVisibility = dto.DefaultVisibility ?? Visibility.Public;
+        settings.ShowLocalTime = dto.ShowLocalTime ?? false;
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.AccountSettings(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated successfully."));
+    }
+
+    // PATCH: Partial Update
+    public async Task<ApiResponse<MessageResponse>> PatchMySettingsAsync(Guid accountId, UpdatePersonalSettingsRequestDto dto)
     {
         var settings = await _context.PersonalSettings.FirstOrDefaultAsync(s => s.Id == accountId);
         if (settings == null) return ApiResponse<MessageResponse>.Failure("Settings not found.");
@@ -123,7 +142,6 @@ public class AccountService : IAccountService
         if (dto.ShowLocalTime.HasValue) settings.ShowLocalTime = dto.ShowLocalTime.Value;
 
         await _context.SaveChangesAsync();
-        
         await _cache.RemoveAsync(CacheKeys.AccountSettings(accountId));
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated successfully."));
@@ -160,7 +178,45 @@ public class AccountService : IAccountService
         });
     }
 
+    // POST: Full Update
     public async Task<ApiResponse<MessageResponse>> UpdateMyProfileAsync(Guid accountId, UpdateProfileRequestDto dto)
+    {
+        var profile = await _context.PersonalProfiles
+            .Include(p => p.Account)
+            .FirstOrDefaultAsync(p => p.Id == accountId);
+        if (profile == null) return ApiResponse<MessageResponse>.Failure("Profile not found.");
+
+        // Full Update: Replace values, null means clear.
+        // Note: DisplayName is required, so we fallback to AccountName if null to prevent DB error.
+        profile.DisplayName = dto.DisplayName ?? profile.Account.AccountName;
+        profile.Description = dto.Description;
+        profile.Content = dto.Content;
+        profile.Location = dto.Location;
+        profile.TimeZone = dto.TimeZone;
+        profile.Website = dto.Website;
+        
+        profile.Pronouns = dto.Pronouns;
+        profile.JobTitle = dto.JobTitle;
+        profile.CurrentCompany = dto.CurrentCompany;
+        profile.CurrentSchool = dto.CurrentSchool;
+        profile.Birthday = dto.Birthday;
+
+        profile.Avatar = dto.Avatar != null 
+            ? new Asset { Type = dto.Avatar.Type, Value = dto.Avatar.Value, Tag = dto.Avatar.Tag } 
+            : new Asset(); // Reset to default
+        
+        profile.Background = dto.Background != null 
+            ? new Asset { Type = dto.Background.Type, Value = dto.Background.Value, Tag = dto.Background.Tag } 
+            : new Asset(); // Reset to default
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.AccountProfile(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Profile updated successfully."));
+    }
+
+    // PATCH: Partial Update
+    public async Task<ApiResponse<MessageResponse>> PatchMyProfileAsync(Guid accountId, UpdateProfileRequestDto dto)
     {
         var profile = await _context.PersonalProfiles.FirstOrDefaultAsync(p => p.Id == accountId);
         if (profile == null) return ApiResponse<MessageResponse>.Failure("Profile not found.");
@@ -189,7 +245,6 @@ public class AccountService : IAccountService
         }
 
         await _context.SaveChangesAsync();
-        
         await _cache.RemoveAsync(CacheKeys.AccountProfile(accountId));
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Profile updated successfully."));

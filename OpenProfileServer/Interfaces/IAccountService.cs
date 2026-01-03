@@ -13,9 +13,11 @@ public interface IAccountService
     
     Task<ApiResponse<PersonalSettingsDto>> GetMySettingsAsync(Guid accountId);
     Task<ApiResponse<MessageResponse>> UpdateMySettingsAsync(Guid accountId, UpdatePersonalSettingsRequestDto dto);
+    Task<ApiResponse<MessageResponse>> PatchMySettingsAsync(Guid accountId, UpdatePersonalSettingsRequestDto dto);
 
     Task<ApiResponse<ProfileDto>> GetMyProfileAsync(Guid accountId);
     Task<ApiResponse<MessageResponse>> UpdateMyProfileAsync(Guid accountId, UpdateProfileRequestDto dto);
+    Task<ApiResponse<MessageResponse>> PatchMyProfileAsync(Guid accountId, UpdateProfileRequestDto dto);
     
     Task<ApiResponse<MessageResponse>> ChangePasswordAsync(Guid accountId, ChangePasswordRequestDto dto);
     Task<ApiResponse<MessageResponse>> RequestDeletionAsync(Guid accountId);

@@ -1,9 +1,15 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using OpenProfileServer.Constants;
+using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Common;
+using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Profile.Details;
 using OpenProfileServer.Models.DTOs.Social;
+using OpenProfileServer.Models.Enums;
+using ZiggyCreatures.Caching.Fusion;
 
 namespace OpenProfileServer.Controllers.Core;
 
@@ -18,15 +24,21 @@ public class ProfileController : ControllerBase
     private readonly IProfileService _profileService;
     private readonly ISocialService _socialService;
     private readonly IProfileDetailService _detailService;
+    private readonly ApplicationDbContext _context;
+    private readonly IFusionCache _cache;
 
     public ProfileController(
         IProfileService profileService, 
         ISocialService socialService,
-        IProfileDetailService detailService)
+        IProfileDetailService detailService,
+        ApplicationDbContext context,
+        IFusionCache cache)
     {
         _profileService = profileService;
         _socialService = socialService;
         _detailService = detailService;
+        _context = context;
+        _cache = cache;
     }
 
     /// <summary>
@@ -133,4 +145,46 @@ public class ProfileController : ControllerBase
         return Ok(await _detailService.GetPublicMembershipsAsync(id.Value));
     }
 
+    /// <summary>
+    /// GET /api/profiles/{profile}/members
+    /// Get public members of an organization.
+    /// </summary>
+    [HttpGet("{profile}/members")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<OrganizationMemberDto>>>> GetMembers(string profile)
+    {
+        var orgId = await _profileService.ResolveIdAsync(profile);
+        if (orgId == null) return NotFound(ApiResponse<string>.Failure("Organization not found."));
+
+        var cacheKey = CacheKeys.OrganizationMembers(orgId.Value);
+
+        var members = await _cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            // Only return members who have set their visibility to Public
+            // And ensure the member account itself is Active
+            return await _context.OrganizationMembers
+                .AsNoTracking()
+                .Where(m => m.OrganizationId == orgId.Value)
+                .Where(m => m.Visibility == Visibility.Public)
+                .Include(m => m.Account).ThenInclude(a => a.Profile)
+                .Where(m => m.Account.Status == AccountStatus.Active)
+                .Select(m => new OrganizationMemberDto
+                {
+                    AccountId = m.AccountId,
+                    AccountName = m.Account.AccountName,
+                    DisplayName = m.Account.Profile != null ? m.Account.Profile.DisplayName : "",
+                    Avatar = m.Account.Profile != null ? new Models.DTOs.Core.AssetDto 
+                    { 
+                         Type = m.Account.Profile.Avatar.Type, 
+                         Value = m.Account.Profile.Avatar.Value 
+                    } : new Models.DTOs.Core.AssetDto(),
+                    Role = m.Role,
+                    Title = m.Title,
+                    Visibility = m.Visibility,
+                    JoinedAt = m.JoinedAt
+                })
+                .ToListAsync();
+        }, tags: [cacheKey]);
+
+        return Ok(ApiResponse<IEnumerable<OrganizationMemberDto>>.Success(members ?? new List<OrganizationMemberDto>()));
+    }
 }

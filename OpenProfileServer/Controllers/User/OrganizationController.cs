@@ -43,6 +43,13 @@ public class OrganizationController : ControllerBase
 
     // === Management ===
 
+    [HttpGet("{org}")]
+    public async Task<ActionResult<ApiResponse<OrganizationDto>>> GetDashboard(Guid org)
+    {
+        var result = await _orgService.GetOrganizationAsync(GetUserId(), org);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
     [HttpGet("{org}/settings")]
     public async Task<ActionResult<ApiResponse<OrganizationSettingsDto>>> GetSettings(Guid org)
     {
@@ -50,17 +57,35 @@ public class OrganizationController : ControllerBase
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
-    [HttpPatch("{org}/settings")]
+    // POST: Full Update
+    [HttpPost("{org}/settings")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateSettings(Guid org, [FromBody] UpdateOrganizationSettingsRequestDto dto)
     {
         var result = await _orgService.UpdateOrgSettingsAsync(GetUserId(), org, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
-    [HttpPatch("{org}/profile")]
+    // PATCH: Partial Update
+    [HttpPatch("{org}/settings")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchSettings(Guid org, [FromBody] UpdateOrganizationSettingsRequestDto dto)
+    {
+        var result = await _orgService.PatchOrgSettingsAsync(GetUserId(), org, dto);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
+    // POST: Full Update
+    [HttpPost("{org}/profile")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateProfile(Guid org, [FromBody] UpdateProfileRequestDto dto)
     {
         var result = await _orgService.UpdateOrgProfileAsync(GetUserId(), org, dto);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
+    // PATCH: Partial Update
+    [HttpPatch("{org}/profile")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchProfile(Guid org, [FromBody] UpdateProfileRequestDto dto)
+    {
+        var result = await _orgService.PatchOrgProfileAsync(GetUserId(), org, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
     
@@ -80,6 +105,20 @@ public class OrganizationController : ControllerBase
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
+    [HttpGet("{org}/members/me/role")]
+    public async Task<ActionResult<ApiResponse<MemberRoleDto>>> GetMyRole(Guid org)
+    {
+        var result = await _orgService.GetMyRoleAsync(GetUserId(), org);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
+    [HttpPatch("{org}/members/me")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMyMemberDetails(Guid org, [FromBody] UpdateMemberRequestDto dto)
+    {
+        var result = await _orgService.UpdateMyMemberDetailsAsync(GetUserId(), org, dto);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
     [HttpPost("{org}/members")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> InviteMember(Guid org, [FromBody] InviteMemberRequestDto dto)
     {
@@ -90,8 +129,7 @@ public class OrganizationController : ControllerBase
     [HttpDelete("{org}/members/{user}")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> KickMember(Guid org, Guid user)
     {
-        // "me" alias support
-        if (user == Guid.Empty) user = GetUserId(); // Logic handled in LeaveOrganization if kicking self
+        if (user == Guid.Empty) user = GetUserId(); 
 
         if (user == GetUserId())
         {

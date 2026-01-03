@@ -12,15 +12,22 @@ public interface IOrganizationService
     // === Core ===
     Task<ApiResponse<Guid>> CreateOrganizationAsync(Guid ownerId, CreateOrganizationRequestDto dto);
     Task<ApiResponse<IEnumerable<OrganizationDto>>> GetMyOrganizationsAsync(Guid userId);
+    Task<ApiResponse<OrganizationDto>> GetOrganizationAsync(Guid userId, Guid orgId);
     Task<ApiResponse<MessageResponse>> DeleteOrganizationAsync(Guid ownerId, Guid orgId);
 
     // === Settings & Profile ===
     Task<ApiResponse<OrganizationSettingsDto>> GetOrgSettingsAsync(Guid userId, Guid orgId);
     Task<ApiResponse<MessageResponse>> UpdateOrgSettingsAsync(Guid userId, Guid orgId, UpdateOrganizationSettingsRequestDto dto);
+    Task<ApiResponse<MessageResponse>> PatchOrgSettingsAsync(Guid userId, Guid orgId, UpdateOrganizationSettingsRequestDto dto);
+    
     Task<ApiResponse<MessageResponse>> UpdateOrgProfileAsync(Guid userId, Guid orgId, UpdateProfileRequestDto dto);
+    Task<ApiResponse<MessageResponse>> PatchOrgProfileAsync(Guid userId, Guid orgId, UpdateProfileRequestDto dto);
 
     // === Members ===
     Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> GetMembersAsync(Guid userId, Guid orgId);
+    Task<ApiResponse<MemberRoleDto>> GetMyRoleAsync(Guid userId, Guid orgId);
+    Task<ApiResponse<MessageResponse>> UpdateMyMemberDetailsAsync(Guid userId, Guid orgId, UpdateMemberRequestDto dto);
+    
     Task<ApiResponse<MessageResponse>> RemoveMemberAsync(Guid requesterId, Guid orgId, Guid targetUserId);
     Task<ApiResponse<MessageResponse>> UpdateMemberRoleAsync(Guid requesterId, Guid orgId, Guid targetUserId, UpdateMemberRequestDto dto);
     Task<ApiResponse<MessageResponse>> LeaveOrganizationAsync(Guid userId, Guid orgId);
