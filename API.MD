@@ -106,6 +106,7 @@ These endpoints are used by the Static Generator.
 | **GET** | `/api/profiles/{profile}/followers` | Get followers list. | `IEnumerable<FollowerDto>` | `api/profiles/{profile}/followers.json` |
 | **GET** | `/api/profiles/{profile}/following` | Get following list. | `IEnumerable<FollowerDto>` | `api/profiles/{profile}/following.json` |
 | **GET** | `/api/profiles/{profile}/privacy` | Get list privacy status. | `ProfilePrivacyDto` | `api/profiles/{profile}/privacy.json` |
+| **GET** | `/api/profiles/{profile}/created-at` | Get account creation date. | `AccountCreatedDateDto` | `api/profiles/{profile}/created-at.json` |
 
 ### 5.1 Public Sub-Resources
 Specific endpoints for sub-resources (also used by Static Generator).

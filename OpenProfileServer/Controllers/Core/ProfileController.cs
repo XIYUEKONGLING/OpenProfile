@@ -221,5 +221,17 @@ public class ProfileController : ControllerBase
         if (!result.Status) return NotFound(result);
         return Ok(result);
     }
-
+    
+    /// <summary>
+    /// GET /api/profiles/{profile}/created-at
+    /// Get the account creation date (DateOnly).
+    /// </summary>
+    [HttpGet("{profile}/created-at")]
+    [HttpGet("{profile}/created-at.json")]
+    public async Task<ActionResult<ApiResponse<AccountCreatedDateDto>>> GetCreatedDate(string profile)
+    {
+        var result = await _profileService.GetAccountCreatedDateAsync(profile);
+        if (!result.Status) return NotFound(result);
+        return Ok(result);
+    }
 }

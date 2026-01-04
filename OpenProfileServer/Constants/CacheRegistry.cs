@@ -26,6 +26,8 @@ public static class CacheKeys
     public static string AccountSettings(Guid accountId) => $"Account:Settings:{accountId}";
 
     public static string AccountPermissions(Guid accountId) => $"Account:Permissions:{accountId}";
+    
+    public static string AccountCreatedDate(Guid accountId) => $"Account:CreatedDate:{accountId}";
 
     // ==========================================
     // Social

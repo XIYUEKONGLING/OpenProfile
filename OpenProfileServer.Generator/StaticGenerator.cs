@@ -185,6 +185,8 @@ public class StaticGenerator
         await ExportSubResource(subResDir, "following", () => _socialService.GetFollowingAsync(accountId));
         await ExportSubResource(subResDir, "privacy", () => _profileService.GetProfilePrivacyAsync($"@{accountId}"));
 
+        await ExportSubResource(subResDir, "created-at", () => _profileService.GetAccountCreatedDateAsync($"@{accountId}"));
+        
         // 5. Type Specific Sub-Resources
         if (type == AccountType.Personal)
         {

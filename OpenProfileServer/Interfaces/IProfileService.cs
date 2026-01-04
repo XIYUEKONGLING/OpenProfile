@@ -16,4 +16,6 @@ public interface IProfileService
     Task<ApiResponse<ProfileDto>> GetProfileAsync(string identifier);
     
     Task<ApiResponse<ProfilePrivacyDto>> GetProfilePrivacyAsync(string identifier);
+    
+    Task<ApiResponse<AccountCreatedDateDto>> GetAccountCreatedDateAsync(string identifier);
 }

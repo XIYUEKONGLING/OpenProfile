@@ -194,5 +194,42 @@ public class ProfileService : IProfileService
             ShowFollowing = settings?.ShowFollowingList ?? true
         });
     }
+    
+    public async Task<ApiResponse<AccountCreatedDateDto>> GetAccountCreatedDateAsync(string identifier)
+    {
+        var accountId = await ResolveIdAsync(identifier);
+        if (accountId == null)
+        {
+            return ApiResponse<AccountCreatedDateDto>.Failure("Profile not found.");
+        }
+
+        var id = accountId.Value;
+        var cacheKey = CacheKeys.AccountCreatedDate(id);
+
+        var createdDate = await _cache.GetOrSetAsync(
+            cacheKey,
+            async _ =>
+            {
+                var account = await _context.Accounts
+                    .AsNoTracking()
+                    .Where(a => a.Id == id)
+                    .Select(a => a.CreatedAt)
+                    .FirstOrDefaultAsync();
+
+                return account != null ? DateOnly.FromDateTime(account) : (DateOnly?)null;
+            },
+            tags: [cacheKey]
+        );
+
+        if (createdDate == null)
+        {
+            return ApiResponse<AccountCreatedDateDto>.Failure("Account not found.");
+        }
+
+        return ApiResponse<AccountCreatedDateDto>.Success(new AccountCreatedDateDto
+        {
+            CreatedDate = createdDate.Value
+        });
+    }
 
 }
