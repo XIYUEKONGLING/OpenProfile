@@ -164,6 +164,7 @@ public class MetaController : ControllerBase
             Email = _emailOptions.IsEnabled && !string.IsNullOrWhiteSpace(_emailOptions.Host),
             
             // Check dynamic database settings
+            Maintenance = await _settingService.GetBoolAsync(SystemSettingKeys.MaintenanceMode, false),
             Registration = await _settingService.GetBoolAsync(SystemSettingKeys.AllowRegistration, true),
             SearchIndexing = await _settingService.GetBoolAsync(SystemSettingKeys.AllowSearchEngineIndexing, true),
             EmailVerification = await _settingService.GetBoolAsync(SystemSettingKeys.RequireEmailVerification, false),

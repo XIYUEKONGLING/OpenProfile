@@ -91,6 +91,7 @@ public class StaticGenerator
 
         var features = new ServerFeaturesDto
         {
+            Maintenance = false,
             Email = false,
             Registration = false,
             EmailVerification = false,

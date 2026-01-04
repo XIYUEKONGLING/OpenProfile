@@ -2,6 +2,8 @@ namespace OpenProfileServer.Models.DTOs.Site;
 
 public class ServerFeaturesDto
 {
+    public bool Maintenance { get; set; }
+    
     /// <summary>
     /// Indicates if the SMTP Email service is configured and enabled.
     /// If false, features like "Forgot Password" or "Email Verification" should be hidden.
