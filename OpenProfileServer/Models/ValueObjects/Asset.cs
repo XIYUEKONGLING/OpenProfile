@@ -7,7 +7,7 @@ namespace OpenProfileServer.Models.ValueObjects;
 [Owned]
 public class Asset
 {
-    public AssetType Type { get; set; } = AssetType.Text;
+    public AssetType Type { get; set; } = AssetType.Empty;
 
     public string? Value { get; set; }
 
