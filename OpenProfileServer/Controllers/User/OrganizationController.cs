@@ -18,16 +18,23 @@ namespace OpenProfileServer.Controllers.User;
 public class OrganizationController : ControllerBase
 {
     private readonly IOrganizationService _orgService;
+    private readonly IProfileService _profileService; 
 
-    public OrganizationController(IOrganizationService orgService)
+    public OrganizationController(IOrganizationService orgService, IProfileService profileService)
     {
         _orgService = orgService;
+        _profileService = profileService;
     }
 
     private Guid GetUserId()
     {
         var idClaim = User.FindFirst(ClaimTypes.NameIdentifier);
         return idClaim != null && Guid.TryParse(idClaim.Value, out var id) ? id : Guid.Empty;
+    }
+    
+    private async Task<Guid?> ResolveOrgId(string identifier)
+    {
+        return await _profileService.ResolveIdAsync(identifier);
     }
 
     [HttpGet]
@@ -164,6 +171,7 @@ public class OrganizationController : ControllerBase
     }
 
     [HttpPost("{org}/members")]
+    [HttpPost("{org}/invitations")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> InviteMember(Guid org, [FromBody] InviteMemberRequestDto dto)
     {
         var result = await _orgService.InviteMemberAsync(GetUserId(), org, dto);
