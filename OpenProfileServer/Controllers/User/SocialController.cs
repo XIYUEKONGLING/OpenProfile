@@ -41,7 +41,8 @@ public class SocialController : ControllerBase
         var targetId = await _profileService.ResolveIdAsync(profile);
         if (targetId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Profile not found."));
 
-        return Ok(await _socialService.FollowUserAsync(GetUserId(), targetId.Value));
+        var result = await _socialService.FollowUserAsync(GetUserId(), targetId.Value);
+        return result.Status ? Ok(result) : BadRequest(result);
     }
 
     /// <summary>
@@ -54,7 +55,8 @@ public class SocialController : ControllerBase
         var targetId = await _profileService.ResolveIdAsync(profile);
         if (targetId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Profile not found."));
 
-        return Ok(await _socialService.UnfollowUserAsync(GetUserId(), targetId.Value));
+        var result = await _socialService.UnfollowUserAsync(GetUserId(), targetId.Value);
+        return result.Status ? Ok(result) : BadRequest(result);
     }
 
     /// <summary>
@@ -80,7 +82,8 @@ public class SocialController : ControllerBase
         var targetId = await _profileService.ResolveIdAsync(profile);
         if (targetId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Profile not found."));
 
-        return Ok(await _socialService.BlockUserAsync(GetUserId(), targetId.Value));
+        var result = await _socialService.BlockUserAsync(GetUserId(), targetId.Value);
+        return result.Status ? Ok(result) : BadRequest(result);
     }
 
     /// <summary>
@@ -93,6 +96,7 @@ public class SocialController : ControllerBase
         var targetId = await _profileService.ResolveIdAsync(profile);
         if (targetId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Profile not found."));
 
-        return Ok(await _socialService.UnblockUserAsync(GetUserId(), targetId.Value));
+        var result = await _socialService.UnblockUserAsync(GetUserId(), targetId.Value);
+        return result.Status ? Ok(result) : BadRequest(result);
     }
 }
