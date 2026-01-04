@@ -1,3 +1,4 @@
+using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
@@ -17,6 +18,8 @@ public interface IOrganizationService
     /// Restores an organization that is in PendingDeletion status.
     /// </summary>
     Task<ApiResponse<MessageResponse>> RestoreOrganizationAsync(Guid ownerId, Guid orgId);
+    
+    Task<ApiResponse<FollowCountsDto>> GetOrgFollowCountsAsync(Guid userId, Guid orgId);
 
     // === Settings & Profile ===
     Task<ApiResponse<OrganizationSettingsDto>> GetOrgSettingsAsync(Guid userId, Guid orgId);

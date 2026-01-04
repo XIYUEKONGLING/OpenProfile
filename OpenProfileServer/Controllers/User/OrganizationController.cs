@@ -2,6 +2,7 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenProfileServer.Interfaces;
+using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
@@ -102,6 +103,18 @@ public class OrganizationController : ControllerBase
         var result = await _orgService.RestoreOrganizationAsync(GetUserId(), org);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
+    
+    /// <summary>
+    /// GET /api/orgs/{org}/follow-stats
+    /// Get organization follow counts (Member access required).
+    /// </summary>
+    [HttpGet("{org}/follow-stats")]
+    public async Task<ActionResult<ApiResponse<FollowCountsDto>>> GetFollowStats(Guid org)
+    {
+        var result = await _orgService.GetOrgFollowCountsAsync(GetUserId(), org);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
 
     // === Members & Invites ===
 

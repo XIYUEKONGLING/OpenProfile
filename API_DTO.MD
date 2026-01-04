@@ -216,6 +216,7 @@ All **POST/PATCH** requests return `MessageResponse`.
 | **PATCH** | `.../settings` | Partial update settings.| `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
 | **POST** | `.../profile` | Full update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
 | **PATCH** | `.../profile` | Partial update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
+| **GET** | `.../follow-stats` | Get org follow counts. | N/A | `FollowCountsDto` |
 
 ### 7.3 Member Management
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |

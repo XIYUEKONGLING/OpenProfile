@@ -202,6 +202,7 @@ Standard logic for users and owners. Admin overrides are handled in Section 8.
 | **PATCH** | `/api/orgs/{org}/settings` | Partial update settings. | **Owner** |
 | **POST** | `/api/orgs/{org}/profile` | Full update profile. | **Admin+** |
 | **PATCH** | `/api/orgs/{org}/profile` | Partial update profile. | **Admin+** |
+| **GET** | `.../follow-stats` | Get org follow counts. | Member+ |
 
 ### 7.3 Member Management
 | Method | Endpoint | Description | Permission |

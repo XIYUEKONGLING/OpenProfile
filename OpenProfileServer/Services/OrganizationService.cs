@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
+using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
@@ -203,6 +204,30 @@ public class OrganizationService : IOrganizationService
         await _cache.RemoveAsync(CacheKeys.AccountProfile(orgId));
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Organization restored successfully."));
     }
+    
+    public async Task<ApiResponse<FollowCountsDto>> GetOrgFollowCountsAsync(Guid userId, Guid orgId)
+    {
+        var isMember = await _context.OrganizationMembers
+            .AnyAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+
+        if (!isMember)
+        {
+            return ApiResponse<FollowCountsDto>.Failure("Insufficient permissions. You are not a member of this organization.");
+        }
+
+        var followersCount = await _context.AccountFollowers
+            .CountAsync(f => f.FollowingId == orgId);
+
+        var followingCount = await _context.AccountFollowers
+            .CountAsync(f => f.FollowerId == orgId);
+
+        return ApiResponse<FollowCountsDto>.Success(new FollowCountsDto
+        {
+            FollowersCount = followersCount,
+            FollowingCount = followingCount
+        });
+    }
+
 
     // === Settings ===
 
