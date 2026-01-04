@@ -32,6 +32,7 @@ public class OrganizationController : ControllerBase
         return idClaim != null && Guid.TryParse(idClaim.Value, out var id) ? id : Guid.Empty;
     }
     
+    // 辅助方法：解析 ID
     private async Task<Guid?> ResolveOrgId(string identifier)
     {
         return await _profileService.ResolveIdAsync(identifier);
@@ -53,62 +54,82 @@ public class OrganizationController : ControllerBase
     // === Management ===
 
     [HttpGet("{org}")]
-    public async Task<ActionResult<ApiResponse<OrganizationDto>>> GetDashboard(Guid org)
+    public async Task<ActionResult<ApiResponse<OrganizationDto>>> GetDashboard(string org)
     {
-        var result = await _orgService.GetOrganizationAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetOrganizationAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpGet("{org}/settings")]
-    public async Task<ActionResult<ApiResponse<OrganizationSettingsDto>>> GetSettings(Guid org)
+    public async Task<ActionResult<ApiResponse<OrganizationSettingsDto>>> GetSettings(string org)
     {
-        var result = await _orgService.GetOrgSettingsAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetOrgSettingsAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
-    // POST: Full Update
     [HttpPost("{org}/settings")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateSettings(Guid org, [FromBody] UpdateOrganizationSettingsRequestDto dto)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateSettings(string org, [FromBody] UpdateOrganizationSettingsRequestDto dto)
     {
-        var result = await _orgService.UpdateOrgSettingsAsync(GetUserId(), org, dto);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.UpdateOrgSettingsAsync(GetUserId(), orgId.Value, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
-    // PATCH: Partial Update
     [HttpPatch("{org}/settings")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchSettings(Guid org, [FromBody] UpdateOrganizationSettingsRequestDto dto)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchSettings(string org, [FromBody] UpdateOrganizationSettingsRequestDto dto)
     {
-        var result = await _orgService.PatchOrgSettingsAsync(GetUserId(), org, dto);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.PatchOrgSettingsAsync(GetUserId(), orgId.Value, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
-    // POST: Full Update
     [HttpPost("{org}/profile")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateProfile(Guid org, [FromBody] UpdateProfileRequestDto dto)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateProfile(string org, [FromBody] UpdateProfileRequestDto dto)
     {
-        var result = await _orgService.UpdateOrgProfileAsync(GetUserId(), org, dto);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.UpdateOrgProfileAsync(GetUserId(), orgId.Value, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
-    // PATCH: Partial Update
     [HttpPatch("{org}/profile")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchProfile(Guid org, [FromBody] UpdateProfileRequestDto dto)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchProfile(string org, [FromBody] UpdateProfileRequestDto dto)
     {
-        var result = await _orgService.PatchOrgProfileAsync(GetUserId(), org, dto);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.PatchOrgProfileAsync(GetUserId(), orgId.Value, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
     
     [HttpDelete("{org}")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> Delete(Guid org)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> Delete(string org)
     {
-        var result = await _orgService.DeleteOrganizationAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.DeleteOrganizationAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpPost("{org}/restore")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> Restore(Guid org)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> Restore(string org)
     {
-        var result = await _orgService.RestoreOrganizationAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.RestoreOrganizationAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
     
@@ -117,9 +138,12 @@ public class OrganizationController : ControllerBase
     /// Get organization follow counts (Member access required).
     /// </summary>
     [HttpGet("{org}/follow-stats")]
-    public async Task<ActionResult<ApiResponse<FollowCountsDto>>> GetFollowStats(Guid org)
+    public async Task<ActionResult<ApiResponse<FollowCountsDto>>> GetFollowStats(string org)
     {
-        var result = await _orgService.GetOrgFollowCountsAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetOrgFollowCountsAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
     
@@ -128,9 +152,12 @@ public class OrganizationController : ControllerBase
     /// Get organization followers list (Member access required, ignores privacy).
     /// </summary>
     [HttpGet("{org}/followers")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowers(Guid org)
+    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowers(string org)
     {
-        var result = await _orgService.GetOrgFollowersAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetOrgFollowersAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
@@ -139,77 +166,102 @@ public class OrganizationController : ControllerBase
     /// Get organization following list (Member access required, ignores privacy).
     /// </summary>
     [HttpGet("{org}/following")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowing(Guid org)
+    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowing(string org)
     {
-        var result = await _orgService.GetOrgFollowingAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetOrgFollowingAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
-
-
 
     // === Members & Invites ===
 
     [HttpGet("{org}/members")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<OrganizationMemberDto>>>> GetMembers(Guid org)
+    public async Task<ActionResult<ApiResponse<IEnumerable<OrganizationMemberDto>>>> GetMembers(string org)
     {
-        var result = await _orgService.GetMembersAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetMembersAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpGet("{org}/members/me/role")]
-    public async Task<ActionResult<ApiResponse<MemberRoleDto>>> GetMyRole(Guid org)
+    public async Task<ActionResult<ApiResponse<MemberRoleDto>>> GetMyRole(string org)
     {
-        var result = await _orgService.GetMyRoleAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetMyRoleAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpPatch("{org}/members/me")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMyMemberDetails(Guid org, [FromBody] UpdateMemberRequestDto dto)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMyMemberDetails(string org, [FromBody] UpdateMemberRequestDto dto)
     {
-        var result = await _orgService.UpdateMyMemberDetailsAsync(GetUserId(), org, dto);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.UpdateMyMemberDetailsAsync(GetUserId(), orgId.Value, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpPost("{org}/members")]
     [HttpPost("{org}/invitations")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> InviteMember(Guid org, [FromBody] InviteMemberRequestDto dto)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> InviteMember(string org, [FromBody] InviteMemberRequestDto dto)
     {
-        var result = await _orgService.InviteMemberAsync(GetUserId(), org, dto);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.InviteMemberAsync(GetUserId(), orgId.Value, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpDelete("{org}/members/{user}")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> KickMember(Guid org, Guid user)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> KickMember(string org, Guid user)
     {
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
         if (user == Guid.Empty) user = GetUserId(); 
 
         if (user == GetUserId())
         {
-             return Ok(await _orgService.LeaveOrganizationAsync(GetUserId(), org));
+             return Ok(await _orgService.LeaveOrganizationAsync(GetUserId(), orgId.Value));
         }
         
-        var result = await _orgService.RemoveMemberAsync(GetUserId(), org, user);
+        var result = await _orgService.RemoveMemberAsync(GetUserId(), orgId.Value, user);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpPatch("{org}/members/{user}")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMember(Guid org, Guid user, [FromBody] UpdateMemberRequestDto dto)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMember(string org, Guid user, [FromBody] UpdateMemberRequestDto dto)
     {
-        var result = await _orgService.UpdateMemberRoleAsync(GetUserId(), org, user, dto);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.UpdateMemberRoleAsync(GetUserId(), orgId.Value, user, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpGet("{org}/invitations")]
-    public async Task<ActionResult<ApiResponse<IEnumerable<OrganizationInvitationDto>>>> GetOutboundInvitations(Guid org)
+    public async Task<ActionResult<ApiResponse<IEnumerable<OrganizationInvitationDto>>>> GetOutboundInvitations(string org)
     {
-        var result = await _orgService.GetPendingInvitationsAsync(GetUserId(), org);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetPendingInvitationsAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
     [HttpDelete("{org}/invitations/{id}")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> RevokeInvitation(Guid org, Guid id)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> RevokeInvitation(string org, Guid id)
     {
-        var result = await _orgService.RevokeInvitationAsync(GetUserId(), org, id);
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.RevokeInvitationAsync(GetUserId(), orgId.Value, id);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 }
