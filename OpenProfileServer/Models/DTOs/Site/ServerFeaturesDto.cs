@@ -22,4 +22,9 @@ public class ServerFeaturesDto
     /// Indicates if the server requires email verification before login.
     /// </summary>
     public bool EmailVerification { get; set; }
+    
+    /// <summary>
+    /// Indicates if adding a new email to an existing account requires verification code.
+    /// </summary>
+    public bool EmailAddVerification { get; set; } 
 }

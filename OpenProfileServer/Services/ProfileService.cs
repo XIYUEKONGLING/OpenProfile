@@ -167,4 +167,32 @@ public class ProfileService : IProfileService
 
         return dto;
     }
+    
+    public async Task<ApiResponse<ProfilePrivacyDto>> GetProfilePrivacyAsync(string identifier)
+    {
+        var accountId = await ResolveIdAsync(identifier);
+        if (accountId == null)
+        {
+            return ApiResponse<ProfilePrivacyDto>.Failure("Profile not found.");
+        }
+
+        var id = accountId.Value;
+        var cacheKey = CacheKeys.AccountSettings(id); // Reuse settings cache key or define specific one
+
+        // We access AccountSettings (Base) directly, which covers Personal, Organization, etc.
+        var settings = await _cache.GetOrSetAsync(
+            cacheKey,
+            async _ => await _context.AccountSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == id)
+        );
+
+        // Default to TRUE (Public) if settings are missing or db is null
+        return ApiResponse<ProfilePrivacyDto>.Success(new ProfilePrivacyDto
+        {
+            ShowFollowers = settings?.ShowFollowersList ?? true,
+            ShowFollowing = settings?.ShowFollowingList ?? true
+        });
+    }
+
 }

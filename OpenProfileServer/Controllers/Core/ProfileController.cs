@@ -208,4 +208,18 @@ public class ProfileController : ControllerBase
 
         return Ok(await _detailService.GetPublicOrgMembersAsync(orgId.Value));
     }
+    
+    /// <summary>
+    /// GET /api/profiles/{profile}/privacy
+    /// Get public privacy settings (e.g. are lists hidden?).
+    /// </summary>
+    [HttpGet("{profile}/privacy")]
+    [HttpGet("{profile}/privacy.json")]
+    public async Task<ActionResult<ApiResponse<ProfilePrivacyDto>>> GetPrivacy(string profile)
+    {
+        var result = await _profileService.GetProfilePrivacyAsync(profile);
+        if (!result.Status) return NotFound(result);
+        return Ok(result);
+    }
+
 }

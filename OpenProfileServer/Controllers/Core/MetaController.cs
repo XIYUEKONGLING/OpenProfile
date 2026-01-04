@@ -166,7 +166,8 @@ public class MetaController : ControllerBase
             // Check dynamic database settings
             Registration = await _settingService.GetBoolAsync(SystemSettingKeys.AllowRegistration, true),
             SearchIndexing = await _settingService.GetBoolAsync(SystemSettingKeys.AllowSearchEngineIndexing, true),
-            EmailVerification = await _settingService.GetBoolAsync(SystemSettingKeys.RequireEmailVerification, false)
+            EmailVerification = await _settingService.GetBoolAsync(SystemSettingKeys.RequireEmailVerification, false),
+            EmailAddVerification = await _settingService.GetBoolAsync(SystemSettingKeys.EmailAddRequiresVerification, true),
         };
     }
 }

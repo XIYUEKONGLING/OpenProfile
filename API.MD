@@ -104,6 +104,7 @@ These endpoints are used by the Static Generator.
 | **GET** | `/api/profiles/{profile}/members` | Get **public** members (Org only). | `IEnumerable<OrganizationMemberDto>` | `api/profiles/{profile}/members.json` |
 | **GET** | `/api/profiles/{profile}/followers` | Get followers list. | `IEnumerable<FollowerDto>` | `api/profiles/{profile}/followers.json` |
 | **GET** | `/api/profiles/{profile}/following` | Get following list. | `IEnumerable<FollowerDto>` | `api/profiles/{profile}/following.json` |
+| **GET** | `/api/profiles/{profile}/privacy` | Get list privacy status. | `ProfilePrivacyDto` | `api/profiles/{profile}/privacy.json` |
 
 ### 5.1 Public Sub-Resources
 Specific endpoints for sub-resources (also used by Static Generator).

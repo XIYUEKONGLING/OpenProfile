@@ -14,4 +14,6 @@ public interface IProfileService
     /// Gets the public profile for a user. Content varies based on status.
     /// </summary>
     Task<ApiResponse<ProfileDto>> GetProfileAsync(string identifier);
+    
+    Task<ApiResponse<ProfilePrivacyDto>> GetProfilePrivacyAsync(string identifier);
 }
