@@ -57,17 +57,23 @@ public class SocialService : ISocialService
         if (followerId == targetId) 
             return ApiResponse<MessageResponse>.Failure("You cannot follow yourself.");
 
-        // Check Target Existence AND Status
-        var targetAccount = await _context.Accounts
+        // Check Target Existence, Status AND Settings
+        var targetData = await _context.Accounts
             .AsNoTracking()
-            .Select(a => new { a.Id, a.Status })
-            .FirstOrDefaultAsync(a => a.Id == targetId);
+            .Where(a => a.Id == targetId)
+            .Select(a => new { a.Status, AllowFollowers = a.Settings != null ? a.Settings.AllowFollowers : true })
+            .FirstOrDefaultAsync();
             
-        if (targetAccount == null) 
+        if (targetData == null) 
             return ApiResponse<MessageResponse>.Failure("Target user not found.");
 
-        if (targetAccount.Status != AccountStatus.Active)
+        if (targetData.Status != AccountStatus.Active)
             return ApiResponse<MessageResponse>.Failure("Cannot follow this user (Account is not active).");
+
+        if (!targetData.AllowFollowers)
+        {
+            return ApiResponse<MessageResponse>.Failure("This user does not allow new followers.");
+        }
 
         // Check Blocks
         var isBlocked = await _context.AccountBlocks
