@@ -56,6 +56,11 @@ public class AdminService : IAdminService
         {
             query = query.Where(a => a.Role == filter.Role.Value);
         }
+        
+        if (filter.Type.HasValue)
+        {
+            query = query.Where(a => a.Type == filter.Type.Value);
+        }
 
         // 2. Pagination Counts
         var totalRecords = await query.CountAsync();

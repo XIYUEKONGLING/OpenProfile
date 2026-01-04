@@ -42,10 +42,11 @@ public class AdminController : ControllerBase
         [FromQuery] int pageSize = 20,
         [FromQuery] string? search = null,
         [FromQuery] AccountStatus? status = null,
-        [FromQuery] AccountRole? role = null)
+        [FromQuery] AccountRole? role = null,
+        [FromQuery] AccountType? type = null)
     {
         var pagination = new PaginationFilter { PageNumber = page, PageSize = pageSize };
-        var filter = new UserFilterDto { Search = search, Status = status, Role = role };
+        var filter = new UserFilterDto { Search = search, Status = status, Role = role, Type = type };
         
         return Ok(await _adminService.GetUsersAsync(pagination, filter));
     }

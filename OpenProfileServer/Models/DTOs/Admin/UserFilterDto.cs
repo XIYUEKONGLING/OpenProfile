@@ -7,4 +7,5 @@ public class UserFilterDto
     public string? Search { get; set; }
     public AccountStatus? Status { get; set; }
     public AccountRole? Role { get; set; }
+    public AccountType? Type { get; set; }
 }
