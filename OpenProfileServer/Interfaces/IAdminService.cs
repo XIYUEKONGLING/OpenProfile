@@ -1,3 +1,4 @@
+using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Admin;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
@@ -39,4 +40,11 @@ public interface IAdminService
     Task<ApiResponse<MessageResponse>> AdminKickMemberAsync(Guid orgId, Guid targetUserId);
     
     Task<ApiResponse<SystemStatusDto>> GetSystemStatusAsync();
+    
+    Task<ApiResponse<IEnumerable<AccountEmailDto>>> AdminGetEmailsAsync(Guid targetUserId);
+    Task<ApiResponse<MessageResponse>> AdminAddEmailAsync(Guid targetUserId, AddEmailRequestDto dto);
+    Task<ApiResponse<MessageResponse>> AdminUpdateEmailAsync(Guid targetUserId, string email, AdminUpdateEmailRequestDto dto);
+    Task<ApiResponse<MessageResponse>> AdminDeleteEmailAsync(Guid targetUserId, string email);
+
+    Task<ApiResponse<MessageResponse>> AdminResetPasswordAsync(Guid adminId, Guid targetUserId, string newPassword);
 }

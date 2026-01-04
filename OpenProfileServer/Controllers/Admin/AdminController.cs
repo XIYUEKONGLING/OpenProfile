@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using OpenProfileServer.Interfaces;
+using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Admin;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
@@ -109,6 +110,42 @@ public class AdminController : ControllerBase
         var result = await _adminService.GetSystemStatusAsync();
         return Ok(result);
     }
+    
+    
+    [HttpPost("users/{user}/password/reset")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> ResetPassword(Guid user, [FromBody] AdminResetPasswordRequestDto dto)
+    {
+        var result = await _adminService.AdminResetPasswordAsync(GetAdminId(), user, dto.NewPassword);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpGet("users/{user}/emails")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<AccountEmailDto>>>> GetUserEmails(Guid user)
+    {
+        return Ok(await _adminService.AdminGetEmailsAsync(user));
+    }
+
+    [HttpPost("users/{user}/emails")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddUserEmail(Guid user, [FromBody] AddEmailRequestDto dto)
+    {
+        var result = await _adminService.AdminAddEmailAsync(user, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("users/{user}/emails/{email}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateUserEmail(Guid user, string email, [FromBody] AdminUpdateEmailRequestDto dto)
+    {
+        var result = await _adminService.AdminUpdateEmailAsync(user, email, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("users/{user}/emails/{email}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteUserEmail(Guid user, string email)
+    {
+        var result = await _adminService.AdminDeleteEmailAsync(user, email);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
     
     // ==========================================
     // Organization Management (Admin Override)

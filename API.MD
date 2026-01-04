@@ -261,6 +261,11 @@ Admins can perform operations that bypass standard checks.
 | **PATCH** | `.../{user}/status` | Change status. | `UpdateUserStatusRequestDto` | `MessageResponse` |
 | **DELETE** | `.../{user}` | **Physical Delete**. | N/A | `MessageResponse` |
 | **POST** | `.../{user}/role` | Promote/Demote. | `UpdateUserRoleRequestDto` | `MessageResponse` |
+| **POST** | `.../{user}/password/reset`| **Force Reset Password**. | AdminOrHigher | `AdminResetPasswordRequestDto`| `MessageResponse` |
+| **GET** | `.../{user}/emails` | **List User Emails**. | AdminOrHigher | N/A | `IEnumerable<AccountEmailDto>` |
+| **POST** | `.../{user}/emails` | **Force Add Email**. | AdminOrHigher | `AddEmailRequestDto` | `MessageResponse` |
+| **PATCH** | `.../{user}/emails/{email}`| **Update Email Status**. | AdminOrHigher | `AdminUpdateEmailRequestDto` | `MessageResponse` |
+| **DELETE** | `.../{user}/emails/{email}`| **Force Remove Email**. | AdminOrHigher | N/A | `MessageResponse` |
 
 ### 8.2 Organization Administration (Force Actions)
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |

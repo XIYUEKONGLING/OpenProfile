@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
+using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Admin;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
@@ -443,5 +444,129 @@ public class AdminService : IAdminService
 
         return ApiResponse<SystemStatusDto>.Success(dto);
     }
+    
+    
+    public async Task<ApiResponse<MessageResponse>> AdminResetPasswordAsync(Guid adminId, Guid targetUserId, string newPassword)
+    {
+        var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
+        var target = await _context.Accounts.Include(a => a.Credential).FirstOrDefaultAsync(a => a.Id == targetUserId);
+
+        if (admin == null || target == null)
+            return ApiResponse<MessageResponse>.Failure("Account not found.");
+
+        if (target.Role == AccountRole.Root)
+            return ApiResponse<MessageResponse>.Failure("Cannot reset password for Root account.");
+
+        if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
+            return ApiResponse<MessageResponse>.Failure("Administrators cannot reset each other's passwords.");
+
+        if (target.Role == AccountRole.Admin && admin.Role != AccountRole.Root)
+            return ApiResponse<MessageResponse>.Failure("Only Root can reset administrator passwords.");
+
+        if (target.Credential == null)
+            return ApiResponse<MessageResponse>.Failure("Target account has no credentials.");
+
+        var (hash, salt) = CryptographyProvider.CreateHash(newPassword);
+        target.Credential.PasswordHash = hash;
+        target.Credential.PasswordSalt = salt;
+        target.Credential.UpdatedAt = DateTime.UtcNow;
+        
+        target.Credential.SecurityStamp = Guid.NewGuid().ToString("N");
+
+        await _context.SaveChangesAsync();
+        await _authService.LogoutAllDevicesAsync(targetUserId);
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("User password has been force-reset."));
+    }
+
+    public async Task<ApiResponse<IEnumerable<AccountEmailDto>>> AdminGetEmailsAsync(Guid targetUserId)
+    {
+        var emails = await _context.AccountEmails
+            .AsNoTracking()
+            .Where(e => e.AccountId == targetUserId)
+            .OrderByDescending(e => e.IsPrimary)
+            .Select(e => new AccountEmailDto
+            {
+                Id = e.Id,
+                Email = e.Email,
+                IsPrimary = e.IsPrimary,
+                IsVerified = e.IsVerified,
+                CreatedAt = e.CreatedAt
+            })
+            .ToListAsync();
+
+        return ApiResponse<IEnumerable<AccountEmailDto>>.Success(emails);
+    }
+
+    public async Task<ApiResponse<MessageResponse>> AdminAddEmailAsync(Guid targetUserId, AddEmailRequestDto dto)
+    {
+        var emailLower = dto.Email.ToLowerInvariant();
+        if (await _context.AccountEmails.AnyAsync(e => e.Email.ToLower() == emailLower))
+            return ApiResponse<MessageResponse>.Failure("Email already in use.");
+
+        var email = new AccountEmail
+        {
+            AccountId = targetUserId,
+            Email = dto.Email,
+            IsPrimary = false,
+            IsVerified = true,
+            VerifiedAt = DateTime.UtcNow,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        _context.AccountEmails.Add(email);
+        await _context.SaveChangesAsync();
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email added successfully by administrator."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> AdminUpdateEmailAsync(Guid targetUserId, string email, AdminUpdateEmailRequestDto dto)
+    {
+        var targetEmail = await _context.AccountEmails
+            .FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.Email == email);
+
+        if (targetEmail == null)
+            return ApiResponse<MessageResponse>.Failure("Email not found.");
+
+        if (dto.IsVerified.HasValue)
+        {
+            targetEmail.IsVerified = dto.IsVerified.Value;
+            targetEmail.VerifiedAt = dto.IsVerified.Value ? DateTime.UtcNow : null;
+        }
+
+        if (dto.IsPrimary.HasValue && dto.IsPrimary.Value)
+        {
+            if (!targetEmail.IsVerified)
+                return ApiResponse<MessageResponse>.Failure("Cannot set unverified email as primary.");
+
+            var currentPrimary = await _context.AccountEmails
+                .FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.IsPrimary);
+            
+            if (currentPrimary != null) currentPrimary.IsPrimary = false;
+            targetEmail.IsPrimary = true;
+        }
+
+        await _context.SaveChangesAsync();
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email status updated."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> AdminDeleteEmailAsync(Guid targetUserId, string email)
+    {
+        var targetEmail = await _context.AccountEmails
+            .FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.Email == email);
+
+        if (targetEmail == null)
+            return ApiResponse<MessageResponse>.Failure("Email not found.");
+
+        if (targetEmail.IsPrimary)
+            return ApiResponse<MessageResponse>.Failure("Cannot delete primary email via this endpoint. Set another primary first.");
+
+        _context.AccountEmails.Remove(targetEmail);
+        await _context.SaveChangesAsync();
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email removed by administrator."));
+    }
+
+
 
 }
