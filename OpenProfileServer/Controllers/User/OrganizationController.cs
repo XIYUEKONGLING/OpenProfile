@@ -32,7 +32,6 @@ public class OrganizationController : ControllerBase
         return idClaim != null && Guid.TryParse(idClaim.Value, out var id) ? id : Guid.Empty;
     }
     
-    // 辅助方法：解析 ID
     private async Task<Guid?> ResolveOrgId(string identifier)
     {
         return await _profileService.ResolveIdAsync(identifier);
