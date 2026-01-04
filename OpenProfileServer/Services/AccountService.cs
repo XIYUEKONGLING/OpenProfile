@@ -292,6 +292,14 @@ public class AccountService : IAccountService
 
     public async Task<ApiResponse<MessageResponse>> ChangePasswordAsync(Guid accountId, ChangePasswordRequestDto dto)
     {
+        var account = await _context.Accounts.FindAsync(accountId);
+        if (account == null) return ApiResponse<MessageResponse>.Failure("Account not found.");
+
+        if (account.Type != AccountType.Personal && account.Type != AccountType.System)
+        {
+            return ApiResponse<MessageResponse>.Failure("This account type does not have a manageable password.");
+        }
+        
         var credential = await _context.AccountCredentials.FirstOrDefaultAsync(c => c.AccountId == accountId);
         if (credential == null) return ApiResponse<MessageResponse>.Failure("Account credentials not found.");
 

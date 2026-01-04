@@ -58,6 +58,17 @@ public class AuthService : IAuthService
 
     public async Task<ApiResponse<MessageResponse>> SendCodeAsync(SendCodeRequestDto dto)
     {
+        if (dto.Type == VerificationType.ResetPassword)
+        {
+            var account = await _context.Accounts
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Emails.Any(e => e.Email.ToLower() == dto.Email.ToLower()));
+            if (account != null && account.Type != AccountType.Personal && account.Type != AccountType.System)
+            {
+                return ApiResponse<MessageResponse>.Failure("Password reset is not supported for this account type.");
+            }
+        }
+        
         if (dto.Type == VerificationType.Registration)
         {
             if (await _context.Accounts.AnyAsync(a => a.Emails.Any(e => e.Email.ToLower() == dto.Email.ToLower())))
@@ -198,6 +209,11 @@ public class AuthService : IAuthService
             
          if (tokenEntry == null || tokenEntry.IsExpired) 
             return ApiResponse<TokenResponseDto>.Failure("Invalid token.");
+         
+         if (tokenEntry.Account.Type != AccountType.Personal && tokenEntry.Account.Type != AccountType.System)
+         {
+             return ApiResponse<TokenResponseDto>.Failure("Session invalid for this account type.");
+         }
             
          if (tokenEntry.Account.Status == AccountStatus.Banned) 
             return ApiResponse<TokenResponseDto>.Failure("Account revoked.");
