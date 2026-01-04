@@ -402,4 +402,41 @@ public class AdminService : IAdminService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member kicked successfully (Admin Override)."));
     }
 
+    public async Task<ApiResponse<SystemStatusDto>> GetSystemStatusAsync()
+    {
+        var now = DateTime.UtcNow;
+
+        var accountStats = await _context.Accounts
+            .AsNoTracking()
+            .Select(a => new { a.Type, a.Role, a.Status })
+            .ToListAsync();
+
+        var tokenStats = await _context.RefreshTokens
+            .AsNoTracking()
+            .Select(t => new { t.ExpiresAt })
+            .ToListAsync();
+
+        var orgCount = await _context.OrganizationProfiles.CountAsync();
+        var personalCount = await _context.PersonalProfiles.CountAsync();
+        var notifyCount = await _context.Notifications.CountAsync();
+
+        var dto = new SystemStatusDto
+        {
+            TotalAccountCount = accountStats.Count,
+            AccountsByType = accountStats.GroupBy(a => a.Type).ToDictionary(g => g.Key, g => g.Count()),
+            AccountsByRole = accountStats.GroupBy(a => a.Role).ToDictionary(g => g.Key, g => g.Count()),
+            AccountsByStatus = accountStats.GroupBy(a => a.Status).ToDictionary(g => g.Key, g => g.Count()),
+
+            TotalRefreshTokenCount = tokenStats.Count,
+            ActiveRefreshTokenCount = tokenStats.Count(t => t.ExpiresAt > now),
+            ExpiredRefreshTokenCount = tokenStats.Count(t => t.ExpiresAt <= now),
+
+            TotalOrganizationCount = orgCount,
+            TotalPersonalProfileCount = personalCount,
+            TotalNotificationCount = notifyCount
+        };
+
+        return ApiResponse<SystemStatusDto>.Success(dto);
+    }
+
 }

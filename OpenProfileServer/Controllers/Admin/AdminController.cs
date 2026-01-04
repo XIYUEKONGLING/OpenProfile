@@ -99,6 +99,16 @@ public class AdminController : ControllerBase
         return result.Status ? Created("", result) : BadRequest(result);
     }
     
+    /// <summary>
+    /// GET /api/admin/system/status
+    /// </summary>
+    [HttpGet("system/status")]
+    public async Task<ActionResult<ApiResponse<SystemStatusDto>>> GetSystemStatus()
+    {
+        var result = await _adminService.GetSystemStatusAsync();
+        return Ok(result);
+    }
+    
     // ==========================================
     // Organization Management (Admin Override)
     // ==========================================

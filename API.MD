@@ -249,6 +249,10 @@ All **POST/PATCH** requests return `MessageResponse`.
 
 Admins can perform operations that bypass standard checks.
 
+| Method | Endpoint | Description | Permission | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/admin/system/status` | **System Status Overview**. | AdminOrHigher | `SystemStatusDto` |
+
 ### 8.1 User & Account Management
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |

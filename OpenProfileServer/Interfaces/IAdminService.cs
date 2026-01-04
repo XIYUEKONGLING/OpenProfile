@@ -37,4 +37,6 @@ public interface IAdminService
     Task<ApiResponse<MessageResponse>> AdminAddMemberAsync(Guid orgId, Guid targetUserId, InviteMemberRequestDto dto);
     Task<ApiResponse<MessageResponse>> AdminUpdateMemberAsync(Guid orgId, Guid targetUserId, UpdateMemberRequestDto dto);
     Task<ApiResponse<MessageResponse>> AdminKickMemberAsync(Guid orgId, Guid targetUserId);
+    
+    Task<ApiResponse<SystemStatusDto>> GetSystemStatusAsync();
 }
