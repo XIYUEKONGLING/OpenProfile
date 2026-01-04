@@ -13,7 +13,7 @@ public interface ISocialService
     Task<ApiResponse<MessageResponse>> BlockUserAsync(Guid blockerId, Guid targetId);
     Task<ApiResponse<MessageResponse>> UnblockUserAsync(Guid blockerId, Guid targetId);
     
-    Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowersAsync(Guid accountId);
-    Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowingAsync(Guid accountId);
+    Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowersAsync(Guid accountId, bool skipPrivacyCheck = false);
+    Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowingAsync(Guid accountId, bool skipPrivacyCheck = false);
     Task<ApiResponse<IEnumerable<BlockDto>>> GetBlockedUsersAsync(Guid accountId);
 }

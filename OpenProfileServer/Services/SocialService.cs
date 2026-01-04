@@ -158,16 +158,18 @@ public class SocialService : ISocialService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("User unblocked."));
     }
 
-    public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowersAsync(Guid accountId)
+    public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowersAsync(Guid accountId, bool skipPrivacyCheck = false)
     {
-        // 1. Check Privacy Settings
-        var settings = await _context.AccountSettings
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == accountId);
-
-        if (settings != null && !settings.ShowFollowersList)
+        // 1. Check Privacy Settings (Unless skipped)
+        if (!skipPrivacyCheck)
         {
-            return ApiResponse<IEnumerable<FollowerDto>>.Success(new List<FollowerDto>());
+            var settings = await _context.AccountSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == accountId);
+            if (settings != null && !settings.ShowFollowersList)
+            {
+                return ApiResponse<IEnumerable<FollowerDto>>.Success(new List<FollowerDto>());
+            }
         }
 
         // 2. Fetch Data with Filter (Status == Active)
@@ -196,16 +198,18 @@ public class SocialService : ISocialService
         return ApiResponse<IEnumerable<FollowerDto>>.Success(followers);
     }
 
-    public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowingAsync(Guid accountId)
+    public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetFollowingAsync(Guid accountId, bool skipPrivacyCheck = false)
     {
-        // 1. Check Privacy Settings
-        var settings = await _context.AccountSettings
-            .AsNoTracking()
-            .FirstOrDefaultAsync(s => s.Id == accountId);
-
-        if (settings != null && !settings.ShowFollowingList)
+        // 1. Check Privacy Settings (Unless skipped)
+        if (!skipPrivacyCheck)
         {
-            return ApiResponse<IEnumerable<FollowerDto>>.Success(new List<FollowerDto>());
+            var settings = await _context.AccountSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == accountId);
+            if (settings != null && !settings.ShowFollowingList)
+            {
+                return ApiResponse<IEnumerable<FollowerDto>>.Success(new List<FollowerDto>());
+            }
         }
 
         // 2. Fetch Data with Filter (Status == Active)

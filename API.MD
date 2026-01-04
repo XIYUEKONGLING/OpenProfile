@@ -10,6 +10,7 @@ All endpoints accepting a profile or organization identifier support two formats
 ### 1.2 Data Format
 - **Casing**: The API uses **PascalCase** for all JSON keys in both requests and responses.
 - **Input Flexibility**: JSON property matching is case-insensitive for incoming requests to improve client compatibility.
+- **Wrapper**: All successful responses are wrapped in `ApiResponse<T>` containing `Status`, `Message`, and `Data`.
 
 ### 1.3 Status & Visibility Logic
 
@@ -33,21 +34,21 @@ The API response and Static Generator behavior depend on the `AccountStatus`.
 
 These endpoints provide information about the server instance, enabled features, and site branding.
 
-| Method | Endpoint | Description | Static File |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api` | Get combined server info, features, and site metadata. | `api/index.json` |
-| **GET** | `/api/info` | Get standalone server version and mode. | `api/info.json` |
-| **GET** | `/api/meta` | Get standalone site branding metadata. | `api/meta.json` |
-| **GET** | `/api/features` | **NEW** Get server feature flags (Email enabled, Registration allowed, etc.). | `api/features.json` |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) | Static File |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api` | Get combined server info, features, and site metadata. | N/A | `ServerResponseDto` | `api/index.json` |
+| **GET** | `/api/info` | Get standalone server version and mode. | N/A | `ServerInfoDto` | `api/info.json` |
+| **GET** | `/api/meta` | Get standalone site branding metadata. | N/A | `SiteMetadataDto` | `api/meta.json` |
+| **GET** | `/api/features` | **NEW** Get server feature flags (Email enabled, Registration allowed, etc.). | N/A | `ServerFeaturesDto` | `api/features.json` |
 
 ### 2.1 Admin Management (Protected)
 
 Manage site branding (Site Name, Description, Logo, etc.).
 
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **POST** | `/api/admin/meta` | **Full Update** site metadata. | AdminOrHigher |
-| **PATCH** | `/api/admin/meta` | **Partial Update** site metadata. | AdminOrHigher |
+| Method | Endpoint | Description | Permission | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **POST** | `/api/admin/meta` | **Full Update** site metadata. | AdminOrHigher | `UpdateSiteMetadataRequestDto` | `MessageResponse` |
+| **PATCH** | `/api/admin/meta` | **Partial Update** site metadata. | AdminOrHigher | `UpdateSiteMetadataRequestDto` | `MessageResponse` |
 
 ---
 
@@ -60,18 +61,15 @@ Authentication and Registration flow with mandatory email verification support.
 2.  **Request Code (If required)**: If `true`, call `POST /api/auth/send-code` with `{ email, type: 0 }`.
 3.  **Register**: Call `POST /api/auth/register` including the `code`. The account is created as **Verified** and **Logged In** atomically.
 
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/auth/config` | Get auth settings (e.g. is verification required?). | No |
-| **POST** | `/api/auth/send-code` | Send verification code to email. (Type: 0=Register, 3=VerifyEmail) | No |
-| **POST** | `/api/auth/register` | Create account. Requires `code` if configured. Returns JWT. | No |
-| **POST** | `/api/auth/login` | Login. Returns JWT + RefreshToken. | No |
-| **POST** | `/api/auth/refresh` | Exchange RefreshToken for a new JWT. | No |
-| **POST** | `/api/auth/logout` | Revoke a specific RefreshToken. | Yes |
-| **POST** | `/api/auth/logout-all` | **SecurityStamp Reset**: Revokes ALL sessions and JWTs. | Yes |
-
-
-*Note: Access Tokens are validated against the database's `SecurityStamp` on every request. A reset will result in immediate 401 Unauthorized for all existing JWTs.*
+| Method | Endpoint | Description | Auth | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/auth/config` | Get auth settings. | No | N/A | `AuthConfigDto` |
+| **POST** | `/api/auth/send-code` | Send verification code. | No | `SendCodeRequestDto` | `MessageResponse` |
+| **POST** | `/api/auth/register` | Create account. | No | `RegisterRequestDto` | `TokenResponseDto` |
+| **POST** | `/api/auth/login` | Login. | No | `LoginRequestDto` | `TokenResponseDto` |
+| **POST** | `/api/auth/refresh` | Exchange RefreshToken. | No | `RefreshTokenRequestDto` | `TokenResponseDto` |
+| **POST** | `/api/auth/logout` | Revoke a specific token. | Yes | `RefreshTokenRequestDto` | `MessageResponse` |
+| **POST** | `/api/auth/logout-all` | **SecurityStamp Reset**. | Yes | N/A | `MessageResponse` |
 
 ---
 
@@ -99,163 +97,177 @@ When User A calls `POST .../block` to block User B:
 
 These endpoints are used by the Static Generator.
 
-| Method | Endpoint | Description | Static File |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/profiles/{profile}` | Get profile info. Content depends on Status. | `api/profiles/{profile}.json` |
-| **GET** | `/api/profiles/{profile}/{resource}` | Get sub-resources (projects, gallery, etc.). | `api/profiles/{profile}/{resource}.json` |
-| **GET** | `/api/profiles/{profile}/memberships` | Get public organizations this user belongs to. | `api/profiles/{profile}/memberships.json` |
-| **GET** | `/api/profiles/{profile}/members` | Get **public** members (Org only). | `api/profiles/{profile}/members.json` |
-| **GET** | `/api/profiles/{profile}/followers` | Get followers list. | `api/profiles/{profile}/followers.json` |
-| **GET** | `/api/profiles/{profile}/following` | Get following list. | `api/profiles/{profile}/following.json` |
+| Method | Endpoint | Description | Response Data (DTO) | Static File |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/profiles/{profile}` | Get profile info. | `ProfileDto` | `api/profiles/{profile}.json` |
+| **GET** | `/api/profiles/{profile}/memberships` | Get public organizations. | `IEnumerable<PublicOrganizationMembershipDto>` | `api/profiles/{profile}/memberships.json` |
+| **GET** | `/api/profiles/{profile}/members` | Get **public** members (Org only). | `IEnumerable<OrganizationMemberDto>` | `api/profiles/{profile}/members.json` |
+| **GET** | `/api/profiles/{profile}/followers` | Get followers list. | `IEnumerable<FollowerDto>` | `api/profiles/{profile}/followers.json` |
+| **GET** | `/api/profiles/{profile}/following` | Get following list. | `IEnumerable<FollowerDto>` | `api/profiles/{profile}/following.json` |
 
-*Resources: `projects`, `gallery`, `socials`, `certificates`, `sponsorships`, `work`, `education`*
+### 5.1 Public Sub-Resources
+Specific endpoints for sub-resources (also used by Static Generator).
+
+| Endpoint | Response Data (DTO) | Static File |
+| :--- | :--- | :--- |
+| `/api/profiles/{profile}/work` | `IEnumerable<WorkExperienceDto>` | `.../work.json` |
+| `/api/profiles/{profile}/education` | `IEnumerable<EducationExperienceDto>` | `.../education.json` |
+| `/api/profiles/{profile}/projects` | `IEnumerable<ProjectDto>` | `.../projects.json` |
+| `/api/profiles/{profile}/socials` | `IEnumerable<SocialLinkDto>` | `.../socials.json` |
+| `/api/profiles/{profile}/contacts` | `IEnumerable<ContactMethodDto>` | `.../contacts.json` |
+| `/api/profiles/{profile}/gallery` | `IEnumerable<GalleryItemDto>` | `.../gallery.json` |
+| `/api/profiles/{profile}/certificates`| `IEnumerable<CertificateDto>` | `.../certificates.json` |
+| `/api/profiles/{profile}/sponsorships`| `IEnumerable<SponsorshipItemDto>` | `.../sponsorships.json` |
 
 ---
 
 ## 6. Personal Management (Dynamic / Protected)
 
 ### 6.1 Lifecycle
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **DELETE** | `/api/me` | **Request Account Deletion** (Cooling-off). Forbidden if Banned. | Owner |
-| **POST** | `/api/me/restore` | **Restore Account** (Cancel deletion). | Owner |
+| Method | Endpoint | Description | Permission | Request Body | Response Data |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **DELETE** | `/api/me` | **Request Account Deletion**. | Owner | N/A | `MessageResponse` |
+| **POST** | `/api/me/restore` | **Restore Account**. | Owner | N/A | `MessageResponse` |
 
 ### 6.2 Account & Security
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/me` | Get full account details. | Owner |
-| **GET** | `/api/me/permissions` | **Get current Account's Role and Type**. | Owner |
-| **GET** | `/api/me/emails` | List all emails. | Owner |
-| **POST** | `/api/me/emails` | Add new email. | Owner |
-| **POST** | `/api/me/emails/{email}/primary` | Set as primary email. | Owner |
-| **POST** | `/api/me/emails/{email}/verify` | Verify email with code. | Owner |
-| **DELETE** | `/api/me/emails/{email}` | Remove email. | Owner |
-| **POST** | `/api/me/password` | Change password. | Owner |
-| **GET** | `/api/me/blocks` | **List blocked users**. | Owner |
-| **GET** | `/api/me/follow-stats` | Get follow counts. | Owner |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/me` | Get full account details. | N/A | `AccountDto` |
+| **GET** | `/api/me/permissions` | **Get Role and Type**. | N/A | `AccountPermissionsDto` |
+| **GET** | `/api/me/emails` | List all emails. | N/A | `IEnumerable<AccountEmailDto>` |
+| **POST** | `/api/me/emails` | Add new email. | `AddEmailRequestDto` | `MessageResponse` |
+| **POST** | `/api/me/emails/{email}/primary`| Set as primary. | N/A | `MessageResponse` |
+| **POST** | `/api/me/emails/{email}/verify` | Verify email with code. | `VerifyEmailRequestDto`| `MessageResponse` |
+| **DELETE** | `/api/me/emails/{email}` | Remove email. | N/A | `MessageResponse` |
+| **POST** | `/api/me/password` | Change password. | `ChangePasswordRequestDto` | `MessageResponse` |
+| **GET** | `/api/me/blocks` | **List blocked users**. | N/A | `IEnumerable<BlockDto>` |
+| **GET** | `/api/me/follow-stats` | Get follow counts. | N/A | `FollowCountsDto` |
+| **GET** | `/api/me/followers` | List my followers. | N/A | `IEnumerable<FollowerDto>` |
+| **GET** | `/api/me/following` | List my following. | N/A | `IEnumerable<FollowerDto>` |
 
 ### 6.3 Settings & Profile
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/me/settings` | Get personal settings. | Owner |
-| **POST** | `/api/me/settings` | Full update settings. | Owner |
-| **PATCH** | `/api/me/settings` | Partial update settings. | Owner |
-| **GET** | `/api/me/profile` | Get profile (Edit View). | Owner |
-| **POST** | `/api/me/profile` | Full update profile. | Owner |
-| **PATCH** | `/api/me/profile` | Partial update profile. | Owner |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/me/settings` | Get personal settings. | N/A | `PersonalSettingsDto` |
+| **POST** | `/api/me/settings` | Full update settings. | `UpdatePersonalSettingsRequestDto` | `MessageResponse` |
+| **PATCH** | `/api/me/settings` | Partial update settings. | `UpdatePersonalSettingsRequestDto` | `MessageResponse` |
+| **GET** | `/api/me/profile` | Get profile (Edit View). | N/A | `ProfileDto` |
+| **POST** | `/api/me/profile` | Full update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
+| **PATCH** | `/api/me/profile` | Partial update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
 
 ### 6.4 Invitations (Incoming)
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/me/invitations` | List received invitations. | Owner |
-| **POST** | `/api/me/invitations/{id}/accept` | Accept invitation. | Owner |
-| **POST** | `/api/me/invitations/{id}/decline` | Decline invitation. | Owner |
+| Method | Endpoint | Description | Request Body | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/me/invitations` | List invitations. | N/A | `IEnumerable<OrganizationInvitationDto>` |
+| **POST** | `.../{id}/accept` | Accept invitation. | N/A | `MessageResponse` |
+| **POST** | `.../{id}/decline` | Decline invitation. | N/A | `MessageResponse` |
 
 ### 6.5 Social Actions
 *Operator must be in **Active** status.*
 
-| Method | Endpoint | Description | Permission |
+| Method | Endpoint | Description | Response Data (DTO) |
 | :--- | :--- | :--- | :--- |
-| **POST** | `/api/profiles/{profile}/follow` | **Follow** target user/org. | User (Active) |
-| **DELETE** | `/api/profiles/{profile}/follow` | **Unfollow**. | User (Active) |
-| **GET** | `/api/profiles/{profile}/follow` | Check if I am following this user. | User |
-| **POST** | `/api/profiles/{profile}/block` | **Block** target (Auto unfollow & remove follower). | User (Active) |
-| **DELETE** | `/api/profiles/{profile}/block` | **Unblock** target. | User (Active) |
+| **POST** | `/api/profiles/{profile}/follow` | **Follow** target user/org. | `MessageResponse` |
+| **DELETE** | `/api/profiles/{profile}/follow` | **Unfollow**. | `MessageResponse` |
+| **GET** | `/api/profiles/{profile}/follow` | Check follow status. | `FollowStatusDto` |
+| **POST** | `/api/profiles/{profile}/block` | **Block** target. | `MessageResponse` |
+| **DELETE** | `/api/profiles/{profile}/block` | **Unblock** target. | `MessageResponse` |
 
-### 6.6 Sub-Resources
-*Endpoints: `/api/me/{resource}` and `/api/me/{resource}/{id}`*
-*Methods: GET, POST (Create/Update), PATCH (Partial Update), DELETE.*
+### 6.6 Sub-Resources (Management)
+Endpoints follow the pattern `/api/me/{resource}`.
+All **POST/PATCH** requests return `MessageResponse`.
+
+| Resource (URL Part) | GET Response (DTO) | CREATE/UPDATE Request (DTO) |
+| :--- | :--- | :--- |
+| `work` | `IEnumerable<WorkExperienceDto>` | `UpdateWorkExperienceRequestDto` |
+| `education` | `IEnumerable<EducationExperienceDto>` | `UpdateEducationExperienceRequestDto` |
+| `projects` | `IEnumerable<ProjectDto>` | `UpdateProjectRequestDto` |
+| `socials` | `IEnumerable<SocialLinkDto>` | `UpdateSocialLinkRequestDto` |
+| `contacts` | `IEnumerable<ContactMethodDto>` | `UpdateContactMethodRequestDto` |
+| `gallery` | `IEnumerable<GalleryItemDto>` | `UpdateGalleryItemRequestDto` |
+| `certificates` | `IEnumerable<CertificateDto>` | `UpdateCertificateRequestDto` |
+| `sponsorships` | `IEnumerable<SponsorshipItemDto>` | `UpdateSponsorshipItemRequestDto` |
 
 ### 6.7 Notifications (Inbox)
 
-Independent of email system. Used for in-app alerts and announcements.
-
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/me/notifications` | List notifications. Supports `?page=1&pageSize=20&unreadOnly=true`. | Owner |
-| **GET** | `/api/me/notifications/unread-count` | Get total count of unread messages. | Owner |
-| **PATCH** | `/api/me/notifications/{id}/read` | Mark a single notification as read. | Owner |
-| **POST** | `/api/me/notifications/read-all` | Mark all notifications as read. | Owner |
-| **DELETE** | `/api/me/notifications/{id}` | Delete a specific notification. | Owner |
-| **DELETE** | `/api/me/notifications` | Delete all read notifications (Cleanup). | Owner |
+| Method | Endpoint | Description | Request Body | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/me/notifications` | List notifications. | Query (`page`, `unreadOnly`) | `PagedResponse<NotificationDto>` |
+| **GET** | `.../unread-count` | Get total unread. | N/A | `int` |
+| **PATCH** | `.../{id}/read` | Mark as read. | N/A | `MessageResponse` |
+| **POST** | `.../read-all` | Mark all read. | N/A | `MessageResponse` |
+| **DELETE** | `.../{id}` | Delete notification. | N/A | `MessageResponse` |
+| **DELETE** | `/api/me/notifications` | Delete all read. | N/A | `MessageResponse` |
 
 ---
 
 ## 7. Organization Management (Dynamic / Protected)
 
-Standard logic for users and owners. Admin overrides are handled in Section 8.
-
 ### 7.1 Lifecycle
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/orgs` | List my organizations. | User |
-| **POST** | `/api/orgs` | Create new organization. | User |
-| **DELETE** | `/api/orgs/{org}` | **Request Dissolution** (Forbidden if Banned). | **Owner** |
-| **POST** | `/api/orgs/{org}/restore` | **Restore Organization** (Cancel dissolution). | **Owner** |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/orgs` | List my organizations. | N/A | `IEnumerable<OrganizationDto>` |
+| **POST** | `/api/orgs` | Create new organization. | `CreateOrganizationRequestDto` | `Guid` (Org ID) |
+| **DELETE** | `/api/orgs/{org}` | **Request Dissolution**. | N/A | `MessageResponse` |
+| **POST** | `.../{org}/restore` | **Restore Organization**. | N/A | `MessageResponse` |
 
 ### 7.2 Settings & Profile
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/orgs/{org}` | Org Dashboard. | Member+ |
-| **GET** | `/api/orgs/{org}/settings` | Get settings. | **Owner** |
-| **POST** | `/api/orgs/{org}/settings` | Full update settings. | **Owner** |
-| **PATCH** | `/api/orgs/{org}/settings` | Partial update settings. | **Owner** |
-| **POST** | `/api/orgs/{org}/profile` | Full update profile. | **Admin+** |
-| **PATCH** | `/api/orgs/{org}/profile` | Partial update profile. | **Admin+** |
-| **GET** | `.../follow-stats` | Get org follow counts. | Member+ |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/orgs/{org}` | Org Dashboard. | N/A | `OrganizationDto` |
+| **GET** | `.../settings` | Get settings. | N/A | `OrganizationSettingsDto` |
+| **POST** | `.../settings` | Full update settings. | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
+| **PATCH** | `.../settings` | Partial update settings.| `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
+| **POST** | `.../profile` | Full update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
+| **PATCH** | `.../profile` | Partial update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
+| **GET** | `.../follow-stats` | Get org follow counts. | N/A | `FollowCountsDto` |
+| **GET** | `.../followers` | List org followers. | N/A | `IEnumerable<FollowerDto>` |
+| **GET** | `.../following` | List org following. | N/A | `IEnumerable<FollowerDto>` |
 
 ### 7.3 Member Management
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/orgs/{org}/members` | List all members. | Member+ |
-| **GET** | `/api/orgs/{org}/members/me/role` | **Get my Role in this organization**. | Member+ |
-| **POST** | `/api/orgs/{org}/members` | Invite/Add member. | **Admin+** |
-| **PATCH** | `/api/orgs/{org}/members/me` | Update my visibility/title. | Member+ |
-| **DELETE** | `/api/orgs/{org}/members/me` | Leave organization. | Member+ |
-| **PATCH** | `/api/orgs/{org}/members/{user}` | Update member role. | **Owner** |
-| **DELETE** | `/api/orgs/{org}/members/{user}` | Kick member. | **Owner** |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `.../members` | List all members. | N/A | `IEnumerable<OrganizationMemberDto>` |
+| **GET** | `.../members/me/role` | **Get my Role**. | N/A | `MemberRoleDto` |
+| **POST** | `.../members` | Invite/Add member. | `InviteMemberRequestDto` | `MessageResponse` |
+| **PATCH** | `.../members/me` | Update my info. | `UpdateMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `.../members/me` | Leave organization. | N/A | `MessageResponse` |
+| **PATCH** | `.../members/{user}` | Update member role. | `UpdateMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `.../members/{user}` | Kick member. | N/A | `MessageResponse` |
 
 ### 7.4 Invitations (Outgoing)
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/orgs/{org}/invitations` | List pending invitations. | **Admin+** |
-| **POST** | `/api/orgs/{org}/invitations` | Send invitation. | **Admin+** |
-| **DELETE** | `/api/orgs/{org}/invitations/{id}` | Revoke invitation. | **Admin+** |
-
-### 7.5 Sub-Resources
-*Endpoints: `/api/orgs/{org}/{resource}`*
-*Permission: **Admin+***
+| Method | Endpoint | Description | Request Body | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `.../invitations` | List pending. | N/A | `IEnumerable<OrganizationInvitationDto>` |
+| **POST** | `.../invitations` | Send invitation. | `InviteMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `.../invitations/{id}`| Revoke invitation. | N/A | `MessageResponse` |
 
 ---
 
 ## 8. System Administration (Dynamic / Protected)
 
-Admins can perform operations that bypass standard checks (e.g., inviting users without acceptance, kicking owners) and manage global configuration.
+Admins can perform operations that bypass standard checks.
 
 ### 8.1 User & Account Management
-| Method | Endpoint | Description | Permission | Query Params |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/admin/users` | List users with pagination. | Admin+ | `page`, `pageSize`, `search`, `status`, `role` |
-| **POST** | `/api/admin/users` | Force create user/org. **If creating an Org, it is created EMPTY (no members).** | Admin+ | |
-| **PATCH** | `/api/admin/users/{user}/status` | Change status (Active/Suspended/Banned). | Admin+ | |
-| **DELETE** | `/api/admin/users/{user}` | **Physical Delete** (No cooling-off). | **Root**/Admin | |
-| **POST** | `/api/admin/users/{user}/role` | Promote/Demote system role. | **Root** | |
+| **GET** | `/api/admin/users` | List users. | Query (`UserFilterDto`) | `PagedResponse<UserAdminDto>` |
+| **POST** | `/api/admin/users` | Force create user/org. | `CreateUserRequestDto` | `UserAdminDto` |
+| **PATCH** | `.../{user}/status` | Change status. | `UpdateUserStatusRequestDto` | `MessageResponse` |
+| **DELETE** | `.../{user}` | **Physical Delete**. | N/A | `MessageResponse` |
+| **POST** | `.../{user}/role` | Promote/Demote. | `UpdateUserRoleRequestDto` | `MessageResponse` |
 
 ### 8.2 Organization Administration (Force Actions)
-These endpoints allow Admins to manage organization members directly, bypassing invitations and standard role restrictions.
-
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/admin/orgs/{org}/members` | **List Members** (Visible even if Org/Members are private). | Admin+ |
-| **POST** | `/api/admin/orgs/{org}/members` | **Force Add Member**. Adds user immediately (Bypasses invitation). | Admin+ |
-| **PATCH** | `/api/admin/orgs/{org}/members/{user}` | **Force Update Member**. Change Role/Title (Can promote to Owner). | Admin+ |
-| **DELETE** | `/api/admin/orgs/{org}/members/{user}` | **Force Kick Member**. Can kick anyone including Owners. | Admin+ |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `.../orgs/{org}/members` | **List Members**. | N/A | `IEnumerable<OrganizationMemberDto>` |
+| **POST** | `.../orgs/{org}/members` | **Force Add**. | `InviteMemberRequestDto` | `MessageResponse` |
+| **PATCH** | `.../members/{user}` | **Force Update**. | `UpdateMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `.../members/{user}` | **Force Kick**. | N/A | `MessageResponse` |
 
 ### 8.3 System Configuration (Runtime)
-Manage dynamic system keys (e.g., `AllowRegistration`, `MaintenanceMode`, `Email:Template:*`).
-
-| Method | Endpoint | Description | Permission |
-| :--- | :--- | :--- | :--- |
-| **GET** | `/api/admin/system-settings` | List all system configuration keys. | Admin+ |
-| **GET** | `/api/admin/system-settings/{key}` | Get specific setting value. | Admin+ |
-| **PUT** | `/api/admin/system-settings/{key}` | **Update** specific setting value. | Admin+ |
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `.../system-settings` | List all settings. | N/A | `IEnumerable<SystemSettingDto>` |
+| **GET** | `.../system-settings/{key}`| Get specific setting. | N/A | `SystemSettingDto` |
+| **PUT** | `.../system-settings/{key}`| **Update** setting. | `UpdateSystemSettingRequestDto` | `MessageResponse` |

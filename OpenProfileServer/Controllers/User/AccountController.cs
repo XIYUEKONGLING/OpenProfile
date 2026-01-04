@@ -206,4 +206,25 @@ public class AccountController : ControllerBase
     {
         return Ok(await _accountService.GetMyBlockedUsersAsync(GetUserId()));
     }
+    
+    /// <summary>
+    /// GET /api/me/followers
+    /// Get my followers list (Ignores privacy settings).
+    /// </summary>
+    [HttpGet("followers")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetMyFollowers()
+    {
+        return Ok(await _accountService.GetMyFollowersAsync(GetUserId()));
+    }
+
+    /// <summary>
+    /// GET /api/me/following
+    /// Get my following list (Ignores privacy settings).
+    /// </summary>
+    [HttpGet("following")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetMyFollowing()
+    {
+        return Ok(await _accountService.GetMyFollowingAsync(GetUserId()));
+    }
+
 }

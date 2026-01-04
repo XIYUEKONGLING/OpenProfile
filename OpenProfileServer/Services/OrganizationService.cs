@@ -8,6 +8,7 @@ using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Settings;
+using OpenProfileServer.Models.DTOs.Social;
 using OpenProfileServer.Models.Entities;
 using OpenProfileServer.Models.Entities.Profiles;
 using OpenProfileServer.Models.Entities.Settings;
@@ -24,18 +25,22 @@ public class OrganizationService : IOrganizationService
     private readonly IFusionCache _cache;
     private readonly INotificationService _notificationService;
     private readonly ISystemSettingService _settingService;
+    private readonly ISocialService _socialService;
+    
     private static readonly Regex AccountNameRegex = new("^[a-zA-Z0-9_-]{3,64}$", RegexOptions.Compiled);
 
     public OrganizationService(
         ApplicationDbContext context, 
         IFusionCache cache,
         INotificationService notificationService,
-        ISystemSettingService settingService)
+        ISystemSettingService settingService,
+        ISocialService socialService)
     {
         _context = context;
         _cache = cache;
         _notificationService = notificationService;
         _settingService = settingService;
+        _socialService = socialService;
     }
 
     private async Task<string?> ValidateOrgAssetsAsync(UpdateProfileRequestDto dto)
@@ -58,6 +63,32 @@ public class OrganizationService : IOrganizationService
         var settings = await _context.OrganizationSettings
             .FirstOrDefaultAsync(s => s.Id == orgId);
         return (member, settings);
+    }
+    
+    public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetOrgFollowersAsync(Guid userId, Guid orgId)
+    {
+        var isMember = await _context.OrganizationMembers
+            .AnyAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+
+        if (!isMember)
+        {
+            return ApiResponse<IEnumerable<FollowerDto>>.Failure("Insufficient permissions. You are not a member of this organization.");
+        }
+
+        return await _socialService.GetFollowersAsync(orgId, skipPrivacyCheck: true);
+    }
+
+    public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetOrgFollowingAsync(Guid userId, Guid orgId)
+    {
+        var isMember = await _context.OrganizationMembers
+            .AnyAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+
+        if (!isMember)
+        {
+            return ApiResponse<IEnumerable<FollowerDto>>.Failure("Insufficient permissions. You are not a member of this organization.");
+        }
+
+        return await _socialService.GetFollowingAsync(orgId, skipPrivacyCheck: true);
     }
 
     public async Task<ApiResponse<Guid>> CreateOrganizationAsync(Guid ownerId, CreateOrganizationRequestDto dto)

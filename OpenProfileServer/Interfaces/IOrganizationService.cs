@@ -3,6 +3,7 @@ using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Settings;
+using OpenProfileServer.Models.DTOs.Social;
 
 namespace OpenProfileServer.Interfaces;
 
@@ -20,6 +21,9 @@ public interface IOrganizationService
     Task<ApiResponse<MessageResponse>> RestoreOrganizationAsync(Guid ownerId, Guid orgId);
     
     Task<ApiResponse<FollowCountsDto>> GetOrgFollowCountsAsync(Guid userId, Guid orgId);
+    
+    Task<ApiResponse<IEnumerable<FollowerDto>>> GetOrgFollowersAsync(Guid userId, Guid orgId);
+    Task<ApiResponse<IEnumerable<FollowerDto>>> GetOrgFollowingAsync(Guid userId, Guid orgId);
 
     // === Settings & Profile ===
     Task<ApiResponse<OrganizationSettingsDto>> GetOrgSettingsAsync(Guid userId, Guid orgId);

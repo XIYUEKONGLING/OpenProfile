@@ -7,6 +7,7 @@ using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Settings;
+using OpenProfileServer.Models.DTOs.Social;
 using OpenProfileServer.Models.Entities;
 
 namespace OpenProfileServer.Controllers.User;
@@ -114,6 +115,29 @@ public class OrganizationController : ControllerBase
         var result = await _orgService.GetOrgFollowCountsAsync(GetUserId(), org);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
+    
+    /// <summary>
+    /// GET /api/orgs/{org}/followers
+    /// Get organization followers list (Member access required, ignores privacy).
+    /// </summary>
+    [HttpGet("{org}/followers")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowers(Guid org)
+    {
+        var result = await _orgService.GetOrgFollowersAsync(GetUserId(), org);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
+    /// <summary>
+    /// GET /api/orgs/{org}/following
+    /// Get organization following list (Member access required, ignores privacy).
+    /// </summary>
+    [HttpGet("{org}/following")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<FollowerDto>>>> GetFollowing(Guid org)
+    {
+        var result = await _orgService.GetOrgFollowingAsync(GetUserId(), org);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
 
 
     // === Members & Invites ===

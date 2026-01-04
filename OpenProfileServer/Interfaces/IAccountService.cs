@@ -33,4 +33,7 @@ public interface IAccountService
 
     // === Block Management ===
     Task<ApiResponse<IEnumerable<BlockDto>>> GetMyBlockedUsersAsync(Guid accountId);
+    
+    Task<ApiResponse<IEnumerable<FollowerDto>>> GetMyFollowersAsync(Guid accountId);
+    Task<ApiResponse<IEnumerable<FollowerDto>>> GetMyFollowingAsync(Guid accountId);
 }

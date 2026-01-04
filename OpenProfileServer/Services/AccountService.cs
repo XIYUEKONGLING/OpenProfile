@@ -504,4 +504,15 @@ public class AccountService : IAccountService
     {
         return await _socialService.GetBlockedUsersAsync(accountId);
     }
+    
+    public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetMyFollowersAsync(Guid accountId)
+    {
+        return await _socialService.GetFollowersAsync(accountId, skipPrivacyCheck: true);
+    }
+
+    public async Task<ApiResponse<IEnumerable<FollowerDto>>> GetMyFollowingAsync(Guid accountId)
+    {
+        return await _socialService.GetFollowingAsync(accountId, skipPrivacyCheck: true);
+    }
+
 }
