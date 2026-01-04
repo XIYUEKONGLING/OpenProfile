@@ -60,6 +60,7 @@ Authentication and Registration flow with mandatory email verification support.
 1.  **Check Configuration**: Call `GET /api/features` (or auth config) to check `EmailVerification`.
 2.  **Request Code (If required)**: If `true`, call `POST /api/auth/send-code` with `{ email, type: 0 }`.
 3.  **Register**: Call `POST /api/auth/register` including the `code`. The account is created as **Verified** and **Logged In** atomically.
+4. **Account Type Restriction**: Only accounts of type `Personal` and `System` are allowed to perform login and password recovery. `Organization` accounts are non-login entities.
 
 | Method | Endpoint | Description | Auth | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- | :--- |

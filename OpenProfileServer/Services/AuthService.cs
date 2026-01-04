@@ -178,6 +178,11 @@ public class AuthService : IAuthService
         if (account?.Credential == null || !CryptographyProvider.Verify(dto.Password, account.Credential.PasswordHash, account.Credential.PasswordSalt))
             return ApiResponse<TokenResponseDto>.Failure("Invalid credentials.");
             
+        if (account.Type != AccountType.Personal && account.Type != AccountType.System)
+        {
+            return ApiResponse<TokenResponseDto>.Failure("This account type is not allowed to log in directly.");
+        }
+        
         if (account.Status == AccountStatus.Banned) 
             return ApiResponse<TokenResponseDto>.Failure("Account banned.");
         

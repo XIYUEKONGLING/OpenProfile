@@ -453,6 +453,11 @@ public class AdminService : IAdminService
 
         if (admin == null || target == null)
             return ApiResponse<MessageResponse>.Failure("Account not found.");
+        
+        if (target.Type != AccountType.Personal && target.Type != AccountType.System)
+        {
+            return ApiResponse<MessageResponse>.Failure("Password reset is not applicable for Organizations, Applications, or Services.");
+        }
 
         if (target.Role == AccountRole.Root)
             return ApiResponse<MessageResponse>.Failure("Cannot reset password for Root account.");
