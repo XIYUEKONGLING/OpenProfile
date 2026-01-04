@@ -132,6 +132,7 @@ These endpoints are used by the Static Generator.
 | **DELETE** | `/api/me/emails/{email}` | Remove email. | Owner |
 | **POST** | `/api/me/password` | Change password. | Owner |
 | **GET** | `/api/me/blocks` | **List blocked users**. | Owner |
+| **GET** | `/api/me/follow-stats` | Get follow counts. | Owner |
 
 ### 6.3 Settings & Profile
 | Method | Endpoint | Description | Permission |

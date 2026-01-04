@@ -80,6 +80,17 @@ public class AccountController : ControllerBase
     {
         return Ok(await _accountService.PatchMySettingsAsync(GetUserId(), dto));
     }
+    
+    /// <summary>
+    /// GET /api/me/follow-stats
+    /// Get counts of followers and following.
+    /// </summary>
+    [HttpGet("follow-stats")]
+    public async Task<ActionResult<ApiResponse<FollowCountsDto>>> GetFollowStats()
+    {
+        return Ok(await _accountService.GetMyFollowCountsAsync(GetUserId()));
+    }
+
 
     /// <summary>
     /// GET /api/me/profile

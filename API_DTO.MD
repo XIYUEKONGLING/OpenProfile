@@ -140,6 +140,7 @@ Specific endpoints for sub-resources (also used by Static Generator).
 | **DELETE** | `/api/me/emails/{email}` | Remove email. | N/A | `MessageResponse` |
 | **POST** | `/api/me/password` | Change password. | `ChangePasswordRequestDto` | `MessageResponse` |
 | **GET** | `/api/me/blocks` | **List blocked users**. | N/A | `IEnumerable<BlockDto>` |
+| **GET** | `/api/me/follow-stats` | Get follow counts. | N/A | `FollowCountsDto` |
 
 ### 6.3 Settings & Profile
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |

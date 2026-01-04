@@ -165,6 +165,21 @@ public class AccountService : IAccountService
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated successfully."));
     }
+    
+    public async Task<ApiResponse<FollowCountsDto>> GetMyFollowCountsAsync(Guid accountId)
+    {
+        var followersCount = await _context.AccountFollowers
+            .CountAsync(f => f.FollowingId == accountId);
+
+        var followingCount = await _context.AccountFollowers
+            .CountAsync(f => f.FollowerId == accountId);
+
+        return ApiResponse<FollowCountsDto>.Success(new FollowCountsDto
+        {
+            FollowersCount = followersCount,
+            FollowingCount = followingCount
+        });
+    }
 
     public async Task<ApiResponse<ProfileDto>> GetMyProfileAsync(Guid accountId)
     {

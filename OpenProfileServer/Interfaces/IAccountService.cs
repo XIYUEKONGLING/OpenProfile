@@ -14,6 +14,7 @@ public interface IAccountService
     Task<ApiResponse<PersonalSettingsDto>> GetMySettingsAsync(Guid accountId);
     Task<ApiResponse<MessageResponse>> UpdateMySettingsAsync(Guid accountId, UpdatePersonalSettingsRequestDto dto);
     Task<ApiResponse<MessageResponse>> PatchMySettingsAsync(Guid accountId, UpdatePersonalSettingsRequestDto dto);
+    Task<ApiResponse<FollowCountsDto>> GetMyFollowCountsAsync(Guid accountId);
 
     Task<ApiResponse<ProfileDto>> GetMyProfileAsync(Guid accountId);
     Task<ApiResponse<MessageResponse>> UpdateMyProfileAsync(Guid accountId, UpdateProfileRequestDto dto);
