@@ -47,8 +47,21 @@ public class OrganizationController : ControllerBase
     }
     
     /// <summary>
+    /// Helper to check if current user is ANY member of the org.
+    /// Used for Read-Only edit views.
+    /// </summary>
+    private async Task<Guid?> CheckMemberPermission(string orgIdentifier)
+    {
+        var orgId = await ResolveOrgId(orgIdentifier);
+        if (orgId == null) return null;
+
+        var roleResult = await _orgService.GetMyRoleAsync(GetUserId(), orgId.Value);
+        return roleResult.Status ? orgId : null;
+    }
+    
+    /// <summary>
     /// Helper to check if current user is Owner or Admin of the org.
-    /// Returns the OrgId if allowed, otherwise null.
+    /// Used for Management (Write) operations.
     /// </summary>
     private async Task<Guid?> CheckManagePermission(string orgIdentifier)
     {
@@ -127,7 +140,7 @@ public class OrganizationController : ControllerBase
     /// <summary>
     /// GET /api/orgs/{org}/profile
     /// Get full profile details for editing.
-    /// Requires Owner or Admin role.
+    /// Accessible by all members.
     /// </summary>
     [HttpGet("{org}/profile")]
     public async Task<ActionResult<ApiResponse<ProfileDto>>> GetProfile(string org)
@@ -135,6 +148,7 @@ public class OrganizationController : ControllerBase
         var orgId = await ResolveOrgId(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
 
+        // Service internally checks if the user is a member
         var result = await _orgService.GetOrgProfileAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
@@ -328,7 +342,7 @@ public class OrganizationController : ControllerBase
     [HttpGet("{org}/projects")]
     public async Task<ActionResult<ApiResponse<IEnumerable<ProjectDto>>>> GetProjects(string org)
     {
-        var orgId = await CheckManagePermission(org);
+        var orgId = await CheckMemberPermission(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
         // publicOnly = false because this is the management view
         return Ok(await _detailService.GetProjectsAsync(orgId.Value, publicOnly: false));
@@ -366,7 +380,7 @@ public class OrganizationController : ControllerBase
     [HttpGet("{org}/socials")]
     public async Task<ActionResult<ApiResponse<IEnumerable<SocialLinkDto>>>> GetSocials(string org)
     {
-        var orgId = await CheckManagePermission(org);
+        var orgId = await CheckMemberPermission(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
         return Ok(await _detailService.GetSocialsAsync(orgId.Value));
     }
@@ -403,7 +417,7 @@ public class OrganizationController : ControllerBase
     [HttpGet("{org}/contacts")]
     public async Task<ActionResult<ApiResponse<IEnumerable<ContactMethodDto>>>> GetContacts(string org)
     {
-        var orgId = await CheckManagePermission(org);
+        var orgId = await CheckMemberPermission(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
         return Ok(await _detailService.GetContactsAsync(orgId.Value, publicOnly: false));
     }
@@ -440,7 +454,7 @@ public class OrganizationController : ControllerBase
     [HttpGet("{org}/gallery")]
     public async Task<ActionResult<ApiResponse<IEnumerable<GalleryItemDto>>>> GetGallery(string org)
     {
-        var orgId = await CheckManagePermission(org);
+        var orgId = await CheckMemberPermission(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
         return Ok(await _detailService.GetGalleryAsync(orgId.Value, publicOnly: false));
     }
@@ -477,7 +491,7 @@ public class OrganizationController : ControllerBase
     [HttpGet("{org}/certificates")]
     public async Task<ActionResult<ApiResponse<IEnumerable<CertificateDto>>>> GetCertificates(string org)
     {
-        var orgId = await CheckManagePermission(org);
+        var orgId = await CheckMemberPermission(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
         return Ok(await _detailService.GetCertificatesAsync(orgId.Value, publicOnly: false));
     }
@@ -514,7 +528,7 @@ public class OrganizationController : ControllerBase
     [HttpGet("{org}/sponsorships")]
     public async Task<ActionResult<ApiResponse<IEnumerable<SponsorshipItemDto>>>> GetSponsorships(string org)
     {
-        var orgId = await CheckManagePermission(org);
+        var orgId = await CheckMemberPermission(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
         return Ok(await _detailService.GetSponsorshipsAsync(orgId.Value, publicOnly: false));
     }
@@ -545,4 +559,7 @@ public class OrganizationController : ControllerBase
         var result = await _detailService.DeleteSponsorshipAsync(orgId.Value, id);
         return result.Status ? Ok(result) : NotFound(result);
     }
+    
+    private ActionResult ForbiddenResponse() => 
+        StatusCode(403, ApiResponse<MessageResponse>.Failure("Insufficient permissions. Owner or Admin role required."));
 }

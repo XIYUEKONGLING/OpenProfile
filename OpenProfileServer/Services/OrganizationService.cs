@@ -333,8 +333,11 @@ public class OrganizationService : IOrganizationService
             .AsNoTracking()
             .FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
 
-        if (member == null || (member.Role != MemberRole.Owner && member.Role != MemberRole.Admin))
-            return ApiResponse<ProfileDto>.Failure("Insufficient permissions.");
+        // if (member == null || (member.Role != MemberRole.Owner && member.Role != MemberRole.Admin))
+        //     return ApiResponse<ProfileDto>.Failure("Insufficient permissions.");
+        
+        if (member == null)
+            return ApiResponse<ProfileDto>.Failure("Insufficient permissions. You are not a member of this organization.");
 
         var profile = await _context.OrganizationProfiles
             .AsNoTracking()

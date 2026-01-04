@@ -206,51 +206,54 @@ All **POST/PATCH** requests return `MessageResponse`.
 ## 7. Organization Management (Dynamic / Protected)
 
 ### 7.1 Lifecycle
-| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/orgs` | List my organizations. | N/A | `IEnumerable<OrganizationDto>` |
-| **POST** | `/api/orgs` | Create new organization. | `CreateOrganizationRequestDto` | `Guid` (Org ID) |
-| **DELETE** | `/api/orgs/{org}` | **Request Dissolution**. | N/A | `MessageResponse` |
-| **POST** | `.../{org}/restore` | **Restore Organization**. | N/A | `MessageResponse` |
+| Method | Endpoint | Description | Permission | Request Body | Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/orgs` | List my organizations. | Authenticated | N/A | `IEnumerable<OrganizationDto>` |
+| **POST** | `/api/orgs` | Create new organization. | Authenticated | `CreateOrganizationRequestDto` | `Guid` (Org ID) |
+| **DELETE** | `/api/orgs/{org}` | **Request Dissolution**. | Owner | N/A | `MessageResponse` |
+| **POST** | `.../{org}/restore` | **Restore Organization**. | Owner | N/A | `MessageResponse` |
 
 ### 7.2 Settings & Profile
-| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/orgs/{org}` | Org Dashboard. | N/A | `OrganizationDto` |
-| **GET** | `.../settings` | Get settings. | N/A | `OrganizationSettingsDto` |
-| **POST** | `.../settings` | Full update settings. | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
-| **PATCH** | `.../settings` | Partial update settings.| `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
-| **GET** | `.../profile` | **Get profile (Edit View).** | N/A | `ProfileDto` |
-| **POST** | `.../profile` | Full update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
-| **PATCH** | `.../profile` | Partial update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
-| **GET** | `.../follow-stats` | Get org follow counts. | N/A | `FollowCountsDto` |
-| **GET** | `.../followers` | List org followers. | N/A | `IEnumerable<FollowerDto>` |
-| **GET** | `.../following` | List org following. | N/A | `IEnumerable<FollowerDto>` |
+Settings are restricted to high-level roles, while the Profile (Edit View) is accessible to all members for collaboration.
+
+| Method | Endpoint | Description | Permission | Request Body | Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/orgs/{org}` | Org Dashboard summary. | Any Member | N/A | `OrganizationDto` |
+| **GET** | `.../settings` | Get org settings. | Owner/Admin | N/A | `OrganizationSettingsDto` |
+| **POST** | `.../settings` | Full update settings. | Owner | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
+| **PATCH** | `.../settings` | Partial update settings.| Owner | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
+| **GET** | `.../profile` | **Get profile (Edit View).** | **Any Member** | N/A | `ProfileDto` |
+| **POST** | `.../profile` | Full update profile. | Owner/Admin | `UpdateProfileRequestDto` | `MessageResponse` |
+| **PATCH** | `.../profile` | Partial update profile. | Owner/Admin | `UpdateProfileRequestDto` | `MessageResponse` |
+| **GET** | `.../follow-stats` | Get org follow counts. | Any Member | N/A | `FollowCountsDto` |
+| **GET** | `.../followers` | List org followers. | Any Member | N/A | `IEnumerable<FollowerDto>` |
+| **GET** | `.../following` | List org following. | Any Member | N/A | `IEnumerable<FollowerDto>` |
 
 ### 7.3 Member Management
-| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `.../members` | List all members. | N/A | `IEnumerable<OrganizationMemberDto>` |
-| **GET** | `.../members/me/role` | **Get my Role**. | N/A | `MemberRoleDto` |
-| **POST** | `.../members` | Invite/Add member. | `InviteMemberRequestDto` | `MessageResponse` |
-| **PATCH** | `.../members/me` | Update my info. | `UpdateMemberRequestDto` | `MessageResponse` |
-| **DELETE** | `.../members/me` | Leave organization. | N/A | `MessageResponse` |
-| **PATCH** | `.../members/{user}` | Update member role. | `UpdateMemberRequestDto` | `MessageResponse` |
-| **DELETE** | `.../members/{user}` | Kick member. | N/A | `MessageResponse` |
+| Method | Endpoint | Description | Permission | Request Body | Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `.../members` | List all members. | Any Member | N/A | `IEnumerable<OrganizationMemberDto>` |
+| **GET** | `.../members/me/role` | Get my Role. | Any Member | N/A | `MemberRoleDto` |
+| **POST** | `.../members` | Invite/Add member. | Owner/Admin* | `InviteMemberRequestDto` | `MessageResponse` |
+| **PATCH** | `.../members/me` | Update my info/visibility.| Any Member | `UpdateMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `.../members/me` | Leave organization. | Any Member | N/A | `MessageResponse` |
+| **PATCH** | `.../members/{user}` | Update member role. | Owner | `UpdateMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `.../members/{user}` | Kick member. | Owner/Admin | N/A | `MessageResponse` |
+
+*\*Members may invite others if `AllowMemberInvite` is enabled in Settings.*
 
 ### 7.4 Invitations (Outgoing)
-| Method | Endpoint | Description | Request Body | Response Data (DTO) |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `.../invitations` | List pending. | N/A | `IEnumerable<OrganizationInvitationDto>` |
-| **POST** | `.../invitations` | Send invitation. | `InviteMemberRequestDto` | `MessageResponse` |
-| **DELETE** | `.../invitations/{id}`| Revoke invitation. | N/A | `MessageResponse` |
+| Method | Endpoint | Description | Permission | Request Body | Response |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `.../invitations` | List pending invites. | Owner/Admin | N/A | `IEnumerable<OrganizationInvitationDto>` |
+| **POST** | `.../invitations` | Send invitation. | Owner/Admin* | `InviteMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `.../invitations/{id}`| Revoke invitation. | Owner/Admin | N/A | `MessageResponse` |
 
-### 7.5 Sub-Resources (Management)
+### 7.5 Sub-Resources (Portfolio Management)
 
-Allows Organization Owners and Admins to manage the organization's portfolio.
-Endpoints follow the pattern `/api/orgs/{org}/{resource}`.
-
-*Note: Organizations do not support Work or Education history.*
+These endpoints manage the organization's portfolio.
+- **Read Access**: Any member (including **Guest**) can GET these resources to view the "Edit View" (includes items hidden from the public).
+- **Write Access**: Restricted to **Owner** and **Admin** only.
 
 | Resource (URL Part) | GET Response (DTO) | CREATE/UPDATE Request (DTO) |
 | :--- | :--- | :--- |
@@ -261,12 +264,11 @@ Endpoints follow the pattern `/api/orgs/{org}/{resource}`.
 | `certificates` | `IEnumerable<CertificateDto>` | `UpdateCertificateRequestDto` |
 | `sponsorships` | `IEnumerable<SponsorshipItemDto>` | `UpdateSponsorshipItemRequestDto` |
 
-**Common Operations**:
-- **GET**: List all items (including private ones).
-- **POST**: Add new item.
-- **PATCH** `.../{id}`: Update item.
-- **DELETE** `.../{id}`: Remove item.
-
+**Permissions Logic**:
+- **GET**: Authorized if User is an Organization Member. Returns all items regardless of `Visibility` setting.
+- **POST**: Authorized if User is Owner or Admin.
+- **PATCH** `.../{id}`: Authorized if User is Owner or Admin.
+- **DELETE** `.../{id}`: Authorized if User is Owner or Admin.
 
 ---
 
