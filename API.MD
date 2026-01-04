@@ -220,6 +220,7 @@ All **POST/PATCH** requests return `MessageResponse`.
 | **GET** | `.../settings` | Get settings. | N/A | `OrganizationSettingsDto` |
 | **POST** | `.../settings` | Full update settings. | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
 | **PATCH** | `.../settings` | Partial update settings.| `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
+| **GET** | `.../profile` | **Get profile (Edit View).** | N/A | `ProfileDto` |
 | **POST** | `.../profile` | Full update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
 | **PATCH** | `.../profile` | Partial update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
 | **GET** | `.../follow-stats` | Get org follow counts. | N/A | `FollowCountsDto` |
@@ -243,6 +244,29 @@ All **POST/PATCH** requests return `MessageResponse`.
 | **GET** | `.../invitations` | List pending. | N/A | `IEnumerable<OrganizationInvitationDto>` |
 | **POST** | `.../invitations` | Send invitation. | `InviteMemberRequestDto` | `MessageResponse` |
 | **DELETE** | `.../invitations/{id}`| Revoke invitation. | N/A | `MessageResponse` |
+
+### 7.5 Sub-Resources (Management)
+
+Allows Organization Owners and Admins to manage the organization's portfolio.
+Endpoints follow the pattern `/api/orgs/{org}/{resource}`.
+
+*Note: Organizations do not support Work or Education history.*
+
+| Resource (URL Part) | GET Response (DTO) | CREATE/UPDATE Request (DTO) |
+| :--- | :--- | :--- |
+| `projects` | `IEnumerable<ProjectDto>` | `UpdateProjectRequestDto` |
+| `socials` | `IEnumerable<SocialLinkDto>` | `UpdateSocialLinkRequestDto` |
+| `contacts` | `IEnumerable<ContactMethodDto>` | `UpdateContactMethodRequestDto` |
+| `gallery` | `IEnumerable<GalleryItemDto>` | `UpdateGalleryItemRequestDto` |
+| `certificates` | `IEnumerable<CertificateDto>` | `UpdateCertificateRequestDto` |
+| `sponsorships` | `IEnumerable<SponsorshipItemDto>` | `UpdateSponsorshipItemRequestDto` |
+
+**Common Operations**:
+- **GET**: List all items (including private ones).
+- **POST**: Add new item.
+- **PATCH** `.../{id}`: Update item.
+- **DELETE** `.../{id}`: Remove item.
+
 
 ---
 

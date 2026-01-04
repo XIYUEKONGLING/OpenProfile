@@ -6,9 +6,11 @@ using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
 using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
+using OpenProfileServer.Models.DTOs.Profile.Details;
 using OpenProfileServer.Models.DTOs.Settings;
 using OpenProfileServer.Models.DTOs.Social;
 using OpenProfileServer.Models.Entities;
+using OpenProfileServer.Models.Enums;
 
 namespace OpenProfileServer.Controllers.User;
 
@@ -17,14 +19,21 @@ namespace OpenProfileServer.Controllers.User;
 [ApiController]
 public class OrganizationController : ControllerBase
 {
+
     private readonly IOrganizationService _orgService;
     private readonly IProfileService _profileService; 
+    private readonly IProfileDetailService _detailService;
 
-    public OrganizationController(IOrganizationService orgService, IProfileService profileService)
+    public OrganizationController(
+        IOrganizationService orgService, 
+        IProfileService profileService,
+        IProfileDetailService detailService)
     {
         _orgService = orgService;
         _profileService = profileService;
+        _detailService = detailService;
     }
+
 
     private Guid GetUserId()
     {
@@ -35,6 +44,29 @@ public class OrganizationController : ControllerBase
     private async Task<Guid?> ResolveOrgId(string identifier)
     {
         return await _profileService.ResolveIdAsync(identifier);
+    }
+    
+    /// <summary>
+    /// Helper to check if current user is Owner or Admin of the org.
+    /// Returns the OrgId if allowed, otherwise null.
+    /// </summary>
+    private async Task<Guid?> CheckManagePermission(string orgIdentifier)
+    {
+        var orgId = await ResolveOrgId(orgIdentifier);
+        if (orgId == null) return null;
+        
+        var roleResult = await _orgService.GetMyRoleAsync(GetUserId(), orgId.Value);
+        if (roleResult.Data == null)
+        {
+            return null;
+        }
+        
+        // Only Owner and Admin can manage sub-resources
+        if (roleResult.Status && (roleResult.Data.Role == MemberRole.Owner || roleResult.Data.Role == MemberRole.Admin))
+        {
+            return orgId;
+        }
+        return null;
     }
 
     [HttpGet]
@@ -91,7 +123,26 @@ public class OrganizationController : ControllerBase
         var result = await _orgService.PatchOrgSettingsAsync(GetUserId(), orgId.Value, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
+    
+    /// <summary>
+    /// GET /api/orgs/{org}/profile
+    /// Get full profile details for editing.
+    /// Requires Owner or Admin role.
+    /// </summary>
+    [HttpGet("{org}/profile")]
+    public async Task<ActionResult<ApiResponse<ProfileDto>>> GetProfile(string org)
+    {
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
 
+        var result = await _orgService.GetOrgProfileAsync(GetUserId(), orgId.Value);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
+    /// <summary>
+    /// POST /api/orgs/{org}/profile
+    /// Full update of the organization profile.
+    /// </summary>
     [HttpPost("{org}/profile")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateProfile(string org, [FromBody] UpdateProfileRequestDto dto)
     {
@@ -102,6 +153,10 @@ public class OrganizationController : ControllerBase
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
+    /// <summary>
+    /// PATCH /api/orgs/{org}/profile
+    /// Partial update of the organization profile.
+    /// </summary>
     [HttpPatch("{org}/profile")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> PatchProfile(string org, [FromBody] UpdateProfileRequestDto dto)
     {
@@ -262,5 +317,232 @@ public class OrganizationController : ControllerBase
 
         var result = await _orgService.RevokeInvitationAsync(GetUserId(), orgId.Value, id);
         return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+    
+    // ==========================================
+    // Sub-Resources Management (Projects, Socials, etc.)
+    // ==========================================
+    
+    // --- Projects ---
+
+    [HttpGet("{org}/projects")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<ProjectDto>>>> GetProjects(string org)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        // publicOnly = false because this is the management view
+        return Ok(await _detailService.GetProjectsAsync(orgId.Value, publicOnly: false));
+    }
+
+    [HttpPost("{org}/projects")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddProject(string org, [FromBody] UpdateProjectRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.AddProjectAsync(orgId.Value, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("{org}/projects/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateProject(string org, Guid id, [FromBody] UpdateProjectRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.UpdateProjectAsync(orgId.Value, id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("{org}/projects/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteProject(string org, Guid id)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.DeleteProjectAsync(orgId.Value, id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
+
+    // --- Socials ---
+
+    [HttpGet("{org}/socials")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<SocialLinkDto>>>> GetSocials(string org)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        return Ok(await _detailService.GetSocialsAsync(orgId.Value));
+    }
+
+    [HttpPost("{org}/socials")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddSocial(string org, [FromBody] UpdateSocialLinkRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.AddSocialAsync(orgId.Value, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("{org}/socials/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateSocial(string org, Guid id, [FromBody] UpdateSocialLinkRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.UpdateSocialAsync(orgId.Value, id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("{org}/socials/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteSocial(string org, Guid id)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.DeleteSocialAsync(orgId.Value, id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
+
+    // --- Contacts ---
+
+    [HttpGet("{org}/contacts")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<ContactMethodDto>>>> GetContacts(string org)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        return Ok(await _detailService.GetContactsAsync(orgId.Value, publicOnly: false));
+    }
+
+    [HttpPost("{org}/contacts")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddContact(string org, [FromBody] UpdateContactMethodRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.AddContactAsync(orgId.Value, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("{org}/contacts/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateContact(string org, Guid id, [FromBody] UpdateContactMethodRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.UpdateContactAsync(orgId.Value, id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("{org}/contacts/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteContact(string org, Guid id)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.DeleteContactAsync(orgId.Value, id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
+
+    // --- Gallery ---
+
+    [HttpGet("{org}/gallery")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<GalleryItemDto>>>> GetGallery(string org)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        return Ok(await _detailService.GetGalleryAsync(orgId.Value, publicOnly: false));
+    }
+
+    [HttpPost("{org}/gallery")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddGalleryItem(string org, [FromBody] UpdateGalleryItemRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.AddGalleryItemAsync(orgId.Value, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("{org}/gallery/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateGalleryItem(string org, Guid id, [FromBody] UpdateGalleryItemRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.UpdateGalleryItemAsync(orgId.Value, id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("{org}/gallery/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteGalleryItem(string org, Guid id)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.DeleteGalleryItemAsync(orgId.Value, id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
+
+    // --- Certificates ---
+
+    [HttpGet("{org}/certificates")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<CertificateDto>>>> GetCertificates(string org)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        return Ok(await _detailService.GetCertificatesAsync(orgId.Value, publicOnly: false));
+    }
+
+    [HttpPost("{org}/certificates")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddCertificate(string org, [FromBody] UpdateCertificateRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.AddCertificateAsync(orgId.Value, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("{org}/certificates/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateCertificate(string org, Guid id, [FromBody] UpdateCertificateRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.UpdateCertificateAsync(orgId.Value, id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("{org}/certificates/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteCertificate(string org, Guid id)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.DeleteCertificateAsync(orgId.Value, id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
+
+    // --- Sponsorships ---
+
+    [HttpGet("{org}/sponsorships")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<SponsorshipItemDto>>>> GetSponsorships(string org)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        return Ok(await _detailService.GetSponsorshipsAsync(orgId.Value, publicOnly: false));
+    }
+
+    [HttpPost("{org}/sponsorships")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddSponsorship(string org, [FromBody] UpdateSponsorshipItemRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.AddSponsorshipAsync(orgId.Value, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("{org}/sponsorships/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateSponsorship(string org, Guid id, [FromBody] UpdateSponsorshipItemRequestDto dto)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.UpdateSponsorshipAsync(orgId.Value, id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("{org}/sponsorships/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteSponsorship(string org, Guid id)
+    {
+        var orgId = await CheckManagePermission(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found or access denied."));
+        var result = await _detailService.DeleteSponsorshipAsync(orgId.Value, id);
+        return result.Status ? Ok(result) : NotFound(result);
     }
 }

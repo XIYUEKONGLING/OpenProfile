@@ -5,6 +5,7 @@ using OpenProfileServer.Data;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
+using OpenProfileServer.Models.DTOs.Core;
 using OpenProfileServer.Models.DTOs.Organization;
 using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Settings;
@@ -326,6 +327,57 @@ public class OrganizationService : IOrganizationService
 
     // === Profile ===
 
+    public async Task<ApiResponse<ProfileDto>> GetOrgProfileAsync(Guid userId, Guid orgId)
+    {
+        var member = await _context.OrganizationMembers
+            .AsNoTracking()
+            .FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+
+        if (member == null || (member.Role != MemberRole.Owner && member.Role != MemberRole.Admin))
+            return ApiResponse<ProfileDto>.Failure("Insufficient permissions.");
+
+        var profile = await _context.OrganizationProfiles
+            .AsNoTracking()
+            .Include(p => p.Account)
+            .FirstOrDefaultAsync(p => p.Id == orgId);
+
+        if (profile == null) return ApiResponse<ProfileDto>.Failure("Profile not found.");
+
+        var dto = new ProfileDto
+        {
+            Id = profile.Id,
+            AccountName = profile.Account.AccountName,
+            Type = profile.Account.Type,
+            Status = profile.Account.Status,
+            DisplayName = profile.DisplayName,
+            Description = profile.Description,
+            Content = profile.Content,
+            Location = profile.Location,
+            TimeZone = profile.TimeZone,
+            Website = profile.Website,
+            FoundedDate = profile.FoundedDate,
+        
+            Avatar = new AssetDto 
+            { 
+                Type = profile.Avatar.Type, 
+                Value = profile.Avatar.Value, 
+                Tag = profile.Avatar.Tag 
+            },
+            Background = new AssetDto 
+            { 
+                Type = profile.Background.Type, 
+                Value = profile.Background.Value, 
+                Tag = profile.Background.Tag 
+            }
+        };
+
+        dto.FollowersCount = await _context.AccountFollowers.CountAsync(f => f.FollowingId == orgId);
+        dto.FollowingCount = await _context.AccountFollowers.CountAsync(f => f.FollowerId == orgId);
+
+        return ApiResponse<ProfileDto>.Success(dto);
+    }
+
+    
     public async Task<ApiResponse<MessageResponse>> UpdateOrgProfileAsync(Guid userId, Guid orgId, UpdateProfileRequestDto dto)
     {
         var assetError = await ValidateOrgAssetsAsync(dto);
