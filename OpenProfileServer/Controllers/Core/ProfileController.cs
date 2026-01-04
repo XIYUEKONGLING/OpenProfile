@@ -129,6 +129,20 @@ public class ProfileController : ControllerBase
     }
     
     /// <summary>
+    /// GET /api/profiles/{profile}/contacts
+    /// </summary>
+    [HttpGet("{profile}/contacts")]
+    [HttpGet("{profile}/contacts.json")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<ContactMethodDto>>>> GetContacts(string profile)
+    {
+        var id = await _profileService.ResolveIdAsync(profile);
+        if (id == null) return NotFound(ApiResponse<string>.Failure("Profile not found."));
+        
+        return Ok(await _detailService.GetContactsAsync(id.Value, publicOnly: true));
+    }
+
+    
+    /// <summary>
     /// GET /api/profiles/{profile}/gallery
     /// </summary>
     [HttpGet("{profile}/gallery")]

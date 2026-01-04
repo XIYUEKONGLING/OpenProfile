@@ -387,6 +387,95 @@ public class ProfileDetailService : IProfileDetailService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Social link deleted."));
     }
     
+    public async Task<ApiResponse<IEnumerable<ContactMethodDto>>> GetContactsAsync(Guid profileId, bool publicOnly = false)
+    {
+        var cacheKey = CacheKeys.ProfileContacts(profileId);
+        
+        var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            return await _context.ContactMethods
+                .AsNoTracking()
+                .Where(c => c.ProfileId == profileId)
+                .Select(c => new ContactMethodDto
+                {
+                    Id = c.Id,
+                    Type = c.Type,
+                    Label = c.Label,
+                    Value = c.Value,
+                    Visibility = c.Visibility,
+                    Icon = new AssetDto { Type = c.Icon.Type, Value = c.Icon.Value, Tag = c.Icon.Tag },
+                    Image = new AssetDto { Type = c.Image.Type, Value = c.Image.Value, Tag = c.Image.Tag }
+                })
+                .ToListAsync();
+        }, tags: [cacheKey]);
+
+        if (list != null && publicOnly)
+        {
+            list = list.Where(c => c.Visibility == Visibility.Public).ToList();
+        }
+
+        return ApiResponse<IEnumerable<ContactMethodDto>>.Success(list ?? new List<ContactMethodDto>());
+    }
+
+    public async Task<ApiResponse<MessageResponse>> AddContactAsync(Guid accountId, UpdateContactMethodRequestDto dto)
+    {
+        int limit = await _settingService.GetIntAsync(SystemSettingKeys.MaxAssetSizeBytes, 5242880);
+        var vIcon = AssetValidator.Validate(dto.Icon, limit);
+        if (!vIcon.Valid) return ApiResponse<MessageResponse>.Failure(vIcon.Error!);
+
+        var entity = new ContactMethod
+        {
+            ProfileId = accountId,
+            Type = dto.Type ?? ContactType.Email,
+            Label = dto.Label ?? string.Empty,
+            Value = dto.Value,
+            Visibility = dto.Visibility ?? Visibility.Private,
+            Icon = dto.Icon != null ? new Asset { Type = dto.Icon.Type, Value = dto.Icon.Value, Tag = dto.Icon.Tag } : new Asset(),
+            Image = dto.Image != null ? new Asset { Type = dto.Image.Type, Value = dto.Image.Value, Tag = dto.Image.Tag } : new Asset()
+        };
+
+        _context.ContactMethods.Add(entity);
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileContacts(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Contact method added."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> UpdateContactAsync(Guid accountId, Guid contactId, UpdateContactMethodRequestDto dto)
+    {
+        var entity = await _context.ContactMethods.FirstOrDefaultAsync(c => c.Id == contactId && c.ProfileId == accountId);
+        if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
+
+        if (dto.Type.HasValue) entity.Type = dto.Type.Value;
+        if (dto.Label != null) entity.Label = dto.Label;
+        if (dto.Value != null) entity.Value = dto.Value;
+        if (dto.Visibility.HasValue) entity.Visibility = dto.Visibility.Value;
+        
+        if (dto.Icon != null)
+            entity.Icon = new Asset { Type = dto.Icon.Type, Value = dto.Icon.Value, Tag = dto.Icon.Tag };
+        
+        if (dto.Image != null)
+            entity.Image = new Asset { Type = dto.Image.Type, Value = dto.Image.Value, Tag = dto.Image.Tag };
+
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileContacts(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Contact method updated."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> DeleteContactAsync(Guid accountId, Guid contactId)
+    {
+        var entity = await _context.ContactMethods.FirstOrDefaultAsync(c => c.Id == contactId && c.ProfileId == accountId);
+        if (entity == null) return ApiResponse<MessageResponse>.Failure("Item not found.");
+
+        _context.ContactMethods.Remove(entity);
+        await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.ProfileContacts(accountId));
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Contact method removed."));
+    }
+
+    
     public async Task<ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>> GetPublicMembershipsAsync(Guid profileId)
     {
         var cacheKey = CacheKeys.ProfileMemberships(profileId);

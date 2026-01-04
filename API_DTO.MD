@@ -114,6 +114,7 @@ Specific endpoints for sub-resources (also used by Static Generator).
 | `/api/profiles/{profile}/education` | `IEnumerable<EducationExperienceDto>` | `.../education.json` |
 | `/api/profiles/{profile}/projects` | `IEnumerable<ProjectDto>` | `.../projects.json` |
 | `/api/profiles/{profile}/socials` | `IEnumerable<SocialLinkDto>` | `.../socials.json` |
+| `/api/profiles/{profile}/contacts` | `IEnumerable<ContactMethodDto>` | `.../contacts.json` |
 | `/api/profiles/{profile}/gallery` | `IEnumerable<GalleryItemDto>` | `.../gallery.json` |
 | `/api/profiles/{profile}/certificates`| `IEnumerable<CertificateDto>` | `.../certificates.json` |
 | `/api/profiles/{profile}/sponsorships`| `IEnumerable<SponsorshipItemDto>` | `.../sponsorships.json` |
@@ -180,6 +181,7 @@ All **POST/PATCH** requests return `MessageResponse`.
 | `education` | `IEnumerable<EducationExperienceDto>` | `UpdateEducationExperienceRequestDto` |
 | `projects` | `IEnumerable<ProjectDto>` | `UpdateProjectRequestDto` |
 | `socials` | `IEnumerable<SocialLinkDto>` | `UpdateSocialLinkRequestDto` |
+| `contacts` | `IEnumerable<ContactMethodDto>` | `UpdateContactMethodRequestDto` |
 | `gallery` | `IEnumerable<GalleryItemDto>` | `UpdateGalleryItemRequestDto` |
 | `certificates` | `IEnumerable<CertificateDto>` | `UpdateCertificateRequestDto` |
 | `sponsorships` | `IEnumerable<SponsorshipItemDto>` | `UpdateSponsorshipItemRequestDto` |

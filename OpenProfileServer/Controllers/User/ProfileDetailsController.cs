@@ -154,6 +154,37 @@ public class ProfileDetailsController : ControllerBase
     }
     
     // ==========================================
+    // Contact Methods
+    // ==========================================
+
+    [HttpGet("contacts")]
+    public async Task<ActionResult<ApiResponse<IEnumerable<ContactMethodDto>>>> GetContacts()
+    {
+        return Ok(await _detailService.GetContactsAsync(GetUserId(), publicOnly: false));
+    }
+
+    [HttpPost("contacts")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> AddContact([FromBody] UpdateContactMethodRequestDto dto)
+    {
+        var result = await _detailService.AddContactAsync(GetUserId(), dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpPatch("contacts/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateContact(Guid id, [FromBody] UpdateContactMethodRequestDto dto)
+    {
+        var result = await _detailService.UpdateContactAsync(GetUserId(), id, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    [HttpDelete("contacts/{id}")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteContact(Guid id)
+    {
+        var result = await _detailService.DeleteContactAsync(GetUserId(), id);
+        return result.Status ? Ok(result) : NotFound(result);
+    }
+    
+    // ==========================================
     // Certificates
     // ==========================================
 

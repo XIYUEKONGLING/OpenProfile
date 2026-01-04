@@ -31,6 +31,13 @@ public interface IProfileDetailService
     Task<ApiResponse<MessageResponse>> UpdateSocialAsync(Guid accountId, Guid linkId, UpdateSocialLinkRequestDto dto);
     Task<ApiResponse<MessageResponse>> DeleteSocialAsync(Guid accountId, Guid linkId);
     
+    // Contact Methods
+    Task<ApiResponse<IEnumerable<ContactMethodDto>>> GetContactsAsync(Guid profileId, bool publicOnly = false);
+    Task<ApiResponse<MessageResponse>> AddContactAsync(Guid accountId, UpdateContactMethodRequestDto dto);
+    Task<ApiResponse<MessageResponse>> UpdateContactAsync(Guid accountId, Guid contactId, UpdateContactMethodRequestDto dto);
+    Task<ApiResponse<MessageResponse>> DeleteContactAsync(Guid accountId, Guid contactId);
+
+    
     // Memberships (User -> Orgs)
     Task<ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>> GetPublicMembershipsAsync(Guid profileId);
     
