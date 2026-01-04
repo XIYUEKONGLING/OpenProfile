@@ -45,17 +45,15 @@ public class StaticGenerator
         _appOptions = appOptions.Value;
         _logger = logger;
 
-        // Match the main API's JSON configuration (PascalCase, no indentation for smaller file size)
         _jsonOptions = new JsonSerializerOptions
         {
-            PropertyNamingPolicy = null, // Ensure PascalCase matches DTOs
+            PropertyNamingPolicy = null,
             WriteIndented = false
         };
     }
 
     public async Task GenerateAsync(string rootPath)
     {
-        // Clean and prepare output directory
         var apiPath = Path.Combine(rootPath, "api");
         if (Directory.Exists(apiPath))
         {
@@ -63,17 +61,15 @@ public class StaticGenerator
         }
         Directory.CreateDirectory(apiPath);
 
-        // 1. Generate Global Metadata (Index, Info, Features)
+        _logger.LogInformation("Generating System Metadata...");
         await GenerateSystemInfoAsync(apiPath);
 
-        // 2. Generate Profiles
+        _logger.LogInformation("Generating Profiles...");
         await GenerateProfilesAsync(apiPath);
     }
 
     private async Task GenerateSystemInfoAsync(string basePath)
     {
-        _logger.LogInformation("Generating system metadata...");
-
         var serverInfo = new ServerInfoDto
         {
             Version = _appOptions.Version,
@@ -93,7 +89,6 @@ public class StaticGenerator
             Favicon = new AssetDto { Type = meta.Favicon.Type, Value = meta.Favicon.Value, Tag = meta.Favicon.Tag }
         };
 
-        // Static mode implies interactive features are disabled
         var features = new ServerFeaturesDto
         {
             Email = false,
@@ -110,7 +105,6 @@ public class StaticGenerator
             Features = features
         };
 
-        // Write endpoints mimicking /api, /api/info, /api/meta
         await WriteJsonAsync(Path.Combine(basePath, "index.json"), ApiResponse<ServerResponseDto>.Success(combined));
         await WriteJsonAsync(Path.Combine(basePath, "info.json"), ApiResponse<ServerInfoDto>.Success(serverInfo));
         await WriteJsonAsync(Path.Combine(basePath, "meta.json"), ApiResponse<SiteMetadataDto>.Success(metaDto));
@@ -122,48 +116,59 @@ public class StaticGenerator
         var profilesDir = Path.Combine(basePath, "profiles");
         Directory.CreateDirectory(profilesDir);
 
-        // Fetch all active accounts
-        // We do not export Banned or PendingDeletion accounts
         var accounts = await _context.Accounts
             .AsNoTracking()
             .Where(a => a.Status == AccountStatus.Active)
             .Select(a => new { a.Id, a.AccountName, a.Type })
             .ToListAsync();
 
-        _logger.LogInformation("Found {Count} active profiles to export.", accounts.Count);
+        if (accounts.Count == 0)
+        {
+            _logger.LogWarning("No active accounts found. Profiles directory will be empty.");
+            return;
+        }
 
-        var tasks = accounts.Select(async acc =>
+        _logger.LogInformation("Found {Count} active profiles. Starting export...", accounts.Count);
+
+        int count = 0;
+        foreach (var acc in accounts)
         {
             try
             {
-                // Generate files for BOTH the UUID (e.g. @guid.json) and AccountName (e.g. alice.json)
-                // This supports both routing styles without a backend router.
+                count++;
+                _logger.LogInformation("[{Current}/{Total}] Exporting {AccountName}...", count, accounts.Count, acc.AccountName);
+
+                // Export via UUID (@guid.json)
                 await GenerateSingleProfileAsync(profilesDir, $"@{acc.Id}", acc.Id, acc.Type);
+                
+                // Export via AccountName (username.json)
                 await GenerateSingleProfileAsync(profilesDir, acc.AccountName, acc.Id, acc.Type);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to generate profile for {AccountName} ({Id})", acc.AccountName, acc.Id);
             }
-        });
-
-        await Task.WhenAll(tasks);
+        }
     }
 
     private async Task GenerateSingleProfileAsync(string profilesDir, string identifier, Guid accountId, AccountType type)
     {
-        // 1. Main Profile JSON: /api/profiles/{identifier}.json
+        // 1. Main Profile JSON
         var profilePath = Path.Combine(profilesDir, $"{identifier}.json");
         
-        // Use the service to get the official DTO (ensures consistent mapping logic)
-        // We pass the UUID string to ResolveIdAsync effectively works
-        var profileResponse = await _profileService.GetProfileAsync(accountId.ToString());
+        // FIX: Add '@' prefix to force ProfileService to treat it as a UUID.
+        // Otherwise it looks for a user with username "1234-5678..." and fails.
+        var profileResponse = await _profileService.GetProfileAsync($"@{accountId}");
         
-        if (!profileResponse.Status) return; // Should not happen given we queried active accounts
+        if (!profileResponse.Status) 
+        {
+            _logger.LogWarning("Skipping {Identifier}: Service returned failure (Profile not found).", identifier);
+            return; 
+        }
 
         await WriteJsonAsync(profilePath, profileResponse);
 
-        // 2. Sub-Resources Directory: /api/profiles/{identifier}/
+        // 2. Sub-Resources Directory
         var subResDir = Path.Combine(profilesDir, identifier);
         Directory.CreateDirectory(subResDir);
 
@@ -177,9 +182,7 @@ public class StaticGenerator
         // 4. Social Lists
         await ExportSubResource(subResDir, "followers", () => _socialService.GetFollowersAsync(accountId));
         await ExportSubResource(subResDir, "following", () => _socialService.GetFollowingAsync(accountId));
-        
-        // Privacy settings are public for the frontend to determine what UI elements to render/hide
-        await ExportSubResource(subResDir, "privacy", () => _profileService.GetProfilePrivacyAsync(accountId.ToString()));
+        await ExportSubResource(subResDir, "privacy", () => _profileService.GetProfilePrivacyAsync($"@{accountId}"));
 
         // 5. Type Specific Sub-Resources
         if (type == AccountType.Personal)
