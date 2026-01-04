@@ -398,6 +398,7 @@ public class OrganizationService : IOrganizationService
         profile.Content = dto.Content;
         profile.Location = dto.Location;
         profile.Website = dto.Website;
+        profile.TimeZone = dto.TimeZone;
         profile.FoundedDate = dto.FoundedDate;
         profile.Avatar = dto.Avatar != null ? new Asset { Type = dto.Avatar.Type, Value = dto.Avatar.Value, Tag = dto.Avatar.Tag } : new Asset();
         profile.Background = dto.Background != null ? new Asset { Type = dto.Background.Type, Value = dto.Background.Value, Tag = dto.Background.Tag } : new Asset();
