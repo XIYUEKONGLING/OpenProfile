@@ -6,7 +6,9 @@
 
 **OpenProfileServer** is a high-performance, identity-first backend system for digital business cards and professional profiles. Built with .NET 10, it offers a unique **Dual-Deployment Strategy**: use it as a full-featured Dynamic API or as a Static Site Generator.
 
-[Frontend Repository](https://github.com/XIYUEKONGLING/OpenProfileCard) | [API Specification](API.MD)
+[🖥️ Frontend Repository](https://github.com/XIYUEKONGLING/OpenProfileCard) | [📚 API Specification](API.MD) | [🚀 Deployment & Export Guide](DEPLOY.MD)
+
+- [简体中文](README.zh-cn.MD)
 
 ---
 
