@@ -290,6 +290,7 @@ Admins can perform operations that bypass standard checks.
 | **DELETE** | `.../{user}` | **Physical Delete**. | N/A | `MessageResponse` |
 | **POST** | `.../{user}/role` | Promote/Demote. | `UpdateUserRoleRequestDto` | `MessageResponse` |
 | **POST** | `.../{user}/password/reset`| **Force Reset Password**. | AdminOrHigher | `AdminResetPasswordRequestDto`| `MessageResponse` |
+| **POST** | `.../{user}/notifications`| **Send ystem notification**. | AdminOrHigher | `CreateNotificationRequestDto`| `MessageResponse` |
 | **GET** | `.../{user}/emails` | **List User Emails**. | AdminOrHigher | N/A | `IEnumerable<AccountEmailDto>` |
 | **POST** | `.../{user}/emails` | **Force Add Email**. | AdminOrHigher | `AddEmailRequestDto` | `MessageResponse` |
 | **PATCH** | `.../{user}/emails/{email}`| **Update Email Status**. | AdminOrHigher | `AdminUpdateEmailRequestDto` | `MessageResponse` |
