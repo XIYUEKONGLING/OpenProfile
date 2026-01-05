@@ -15,6 +15,9 @@ public class ProfileDto
     public AccountType Type { get; set; }
     public AccountStatus Status { get; set; }
     
+    // Visibility of the account (Public, Private, etc.)
+    public Visibility Visibility { get; set; }
+    
     // Basic Info (Available for Active & Suspended)
     public string? DisplayName { get; set; }
     public AssetDto? Avatar { get; set; }
