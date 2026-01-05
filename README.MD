@@ -2,135 +2,85 @@
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 [![.NET](https://img.shields.io/badge/.NET-10.0-purple.svg)](https://dotnet.microsoft.com/download/dotnet/10.0)
-[![Build Status](https://img.shields.io/badge/Status-Active__Development-green.svg)](https://github.com/yourusername/OpenProfileServer)
+[![Status](https://img.shields.io/badge/Status-Active__Development-green.svg)](https://github.com/XIYUEKONGLING/OpenProfile)
 
-**OpenProfileServer** is a backend system designed for electronic business cards and digital identity management. It supports rich data structures including work history, education, social links, and certifications.
+**OpenProfileServer** is a high-performance, identity-first backend system for digital business cards and professional profiles. Built with .NET 10, it offers a unique **Dual-Deployment Strategy**: use it as a full-featured Dynamic API or as a Static Site Generator.
 
-The project provides two distinct deployment strategies: a **Dynamic API** for full content management and a **Static Generator** for high-performance, read-only hosting.
+[Frontend Repository](https://github.com/XIYUEKONGLING/OpenProfileCard) | [API Specification](API.MD)
+
+---
+
+## 🌟 Core Philosophy: Dual-Mode Deployment
+
+Unlike traditional CMS, OpenProfile gives you the best of both worlds:
+
+1.  **Dynamic CMS Mode**: Run as a standard Web API. Ideal for organizations and individuals who need real-time updates, user registration, and social interactions (Follow/Block).
+2.  **Static Edge Mode**: Use the built-in Generator to export the entire database into a directory of JSON files. Deploy to **GitHub Pages**, **Cloudflare Pages**, or **Vercel** for 0-cost, global, and ultra-fast hosting.
+
+---
 
 ## 🚀 Key Features
 
--   **Multi-Account Support**: Distinct profiles for **Personal** and **Organization** accounts using Entity Framework Core TPT (Table-Per-Type) inheritance.
--   **Advanced Organization Management**:
-    -   Create and manage organizations with distinct profiles.
-    -   Role-based member management (Owner, Admin, Member).
-    -   Invitation system (Send, Accept, Revoke) for adding new members.
--   **Rich Profile Data**: Comprehensive support for assets, work experience, education, galleries, projects, and sponsorship links.
--   **Dual Deployment Modes**:
-    -   **Dynamic Mode**: Full API with Authentication, Registration, and Admin capabilities.
-    -   **Static Mode**: Generates a directory of JSON DTOs mirroring the API structure for deployment on Cloudflare Pages, GitHub Pages, etc.
--   **Robust Authentication & Security**:
-    -   **Argon2id** hashing for password storage (via BouncyCastle).
-    -   JWT-based authentication with **SecurityStamp** validation (supports "Logout All Devices").
-    -   Optional **Email Verification** system (Registration, Password Reset, Email Binding).
-    -   Built-in **Rate Limiting** policies (Strict limits for Login/Register, sliding windows for general API).
--   **High-Performance Caching**: Integrated **FusionCache** with support for Memory and Redis (L2 Cache + Backplane).
--   **Smart Frontend Detection**: The frontend automatically detects the backend type (Static vs. Dynamic) and enables/disables features (like Login) accordingly.
--   **Flexible Database**: Support for SQLite (Development), PostgreSQL, and MySQL.
+### 👤 Identity Management
+- **Multi-Account Support**: TPT inheritance for **Personal** and **Organization** profiles.
+- **Rich Data Structures**: Work history, education, project portfolios, galleries, and social links.
+- **Organization Hub**: Role-based management (Owner/Admin/Member) with a full invitation system.
+
+### 🛡️ Security & Performance
+- **Modern Auth**: Argon2id password hashing and JWT with SecurityStamp validation (Logout all devices).
+- **Smart Caching**: Multi-level caching via **FusionCache** (L1 Memory + L2 Redis).
+- **Rate Limiting**: Intelligent throttling for sensitive endpoints (Login/Register).
+- **Privacy First**: Granular visibility controls and block-list logic.
+
+### 🛠️ Developer Friendly
+- **Auto-Detection**: The companion frontend automatically adjusts UI features based on whether the backend is Static or Dynamic.
+- **Database Flexibility**: Support for SQLite, PostgreSQL, and MySQL via EF Core.
+
+---
 
 ## 🏗️ Architecture
 
-This repository contains two main programs:
+### 1. OpenProfileServer (The API)
+The heart of the system. An ASP.NET Core 10 Web API handling logic, authentication, and data persistence.
 
-### 1. OpenProfileServer (Dynamic API)
-The standard ASP.NET Core Web API.
--   **Purpose**: Content Management System (CMS).
--   **Features**: Handles HTTP requests, Authentication, Database writes, and real-time updates.
--   **Usage**: Used when you need to edit profiles, manage users, or require dynamic interactions.
+### 2. OpenProfileServer.Generator (The Exporter)
+A specialized tool that crawls the database and generates a static JSON tree that mimics the API structure (e.g., `/api/profiles/alice` becomes `/api/profiles/alice.json`).
 
-### 2. OpenProfileServer.Generator (Static Exporter)
-A console application tool.
--   **Purpose**: Static Site Generation.
--   **Input**: Connects to the database using `appsettings.json`.
--   **Output**: Generates a complete directory structure of **JSON DTOs** that exactly mirrors the API's response format.
--   **Usage**: Run this after you finish editing your profile. Upload the output to a static host.
+---
 
 ## 🛠️ Tech Stack
 
--   **Framework**: ASP.NET Core 10.0
--   **ORM**: Entity Framework Core
--   **Caching**: FusionCache (ZiggyCreatures) + StackExchange.Redis
--   **Security**: BouncyCastle (Cryptography), System.IdentityModel.Tokens.Jwt
--   **Email**: MailKit
--   **API Documentation**: Swagger (OpenAPI)
+- **Runtime**: .NET 10.0
+- **ORM**: Entity Framework Core
+- **Cache**: FusionCache + Redis
+- **Security**: BouncyCastle (Argon2id), JWT
+- **Email**: MailKit (SMTP)
+- **Docs**: Swagger / OpenAPI 3.0
 
-## 📋 Prerequisites
+---
 
--   [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
--   Docker (optional, for containerized deployment)
+## 🚦 Quick Start
 
-## ⚙️ Configuration
+### Prerequisites
+- [.NET 10.0 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 
-Both the Server and the Generator rely on `appsettings.json` for configuration. The application validates configuration on startup.
+### Step 1: Configuration
+Update `appsettings.json` with your database connection string and security keys.
 
--   **DatabaseSettings**: Configure the connection string and provider (SQLite, PgSQL, MySQL).
--   **Security**: Define the Root account credentials and JWT signing secrets.
--   **Email**: (Optional) Configure SMTP settings for verification codes.
--   **Cache**: Toggle Redis support, L1/L2 options, and set expiration policies.
--   **RateLimiting**: Define custom throttling policies for different endpoints.
--   **Storage**: Configure upload limits and allowed MIME types.
-
-*Note: Never commit secrets to version control. Use `appsettings.Development.json` for local overrides.*
-
-## 🏃 Usage
-
-### Option A: Running the Dynamic Server
-
-Use this mode to manage data, register accounts, and edit profiles.
-
-1.  **Run the Server**
-    ```bash
-    dotnet run --project OpenProfileServer
-    ```
-
-2.  **Access API Documentation**
-    Navigate to `https://localhost:5001/swagger` to interact with the API.
-
-### Option B: Generating Static Site
-
-Use this mode to export your data for static hosting.
-
-1.  **Ensure Data is Ready**
-    Make sure you have run the Dynamic Server and populated your profiles in the database.
-
-2.  **Run the Generator**
-    The generator uses the same `appsettings.json` to read the database.
-    ```bash
-    dotnet run --project OpenProfileServer.Generator -- --output ./static-export
-    ```
-
-3.  **Deploy**
-    Upload the contents of `./static-export` to Cloudflare Pages, GitHub Pages, or any static web host. The directory structure will mimic the API routes (e.g., `/api/profiles/{id}.json`).
-
-## 🐳 Docker Support
-
-A Dockerfile is included for the Dynamic Server.
-
+### Step 2: Run Dynamic Server
 ```bash
-docker build -t openprofile-server .
-docker run -p 8080:8080 openprofile-server
+dotnet run --project OpenProfileServer
 ```
 
-## 📊 Development Status
+### Step 3: Generate Static Files
+```bash
+dotnet run --project OpenProfileServer.Generator -- --output ./dist-static
+```
 
-**Current Phase: Alpha**
-
-The core data models, authentication layer, business logic, and database context are established.
-
-### Roadmap
-
--   [x] Core Entity Models (Account, Profile, Settings...)
--   [x] **Dynamic API Implementation** (Auth, Profiles, Organizations, Admin, Social)
--   [ ] **Implementation of Static Generator (Export Logic)**
--   [ ] Frontend Client
-
-## 🤝 Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+---
 
 ## 📄 License
 
-This project is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+This project is licensed under the **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)**.
+*Note: If you modify the code and host it as a service, you must share your changes.*
 
-See the [LICENSE](LICENSE) file for details.
-```
