@@ -292,6 +292,8 @@ public class OrganizationService : IOrganizationService
             return ApiResponse<MessageResponse>.Failure("Only the Owner can update settings.");
         
         if (settings == null) return ApiResponse<MessageResponse>.Failure("Settings not found.");
+        
+        var originVisibility = settings.Visibility;
 
         settings.AllowFollowers = dto.AllowFollowers ?? true;
         settings.ShowFollowingList = dto.ShowFollowingList ?? true;
@@ -303,6 +305,13 @@ public class OrganizationService : IOrganizationService
 
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.AccountSettings(orgId));
+
+        if (originVisibility != settings.Visibility)
+        {
+            await  _cache.RemoveAsync(CacheKeys.AccountProfile(orgId));
+            await  _cache.RemoveAsync(CacheKeys.AccountVisibility(orgId));
+        }
+        
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated."));
     }
 
@@ -313,6 +322,8 @@ public class OrganizationService : IOrganizationService
             return ApiResponse<MessageResponse>.Failure("Only the Owner can update settings.");
         
         if (settings == null) return ApiResponse<MessageResponse>.Failure("Settings not found.");
+        
+        var originVisibility = settings.Visibility;
 
         if (dto.AllowFollowers.HasValue) settings.AllowFollowers = dto.AllowFollowers.Value;
         if (dto.ShowFollowingList.HasValue) settings.ShowFollowingList = dto.ShowFollowingList.Value;
@@ -324,6 +335,13 @@ public class OrganizationService : IOrganizationService
 
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.AccountSettings(orgId));
+        
+        if (originVisibility != settings.Visibility)
+        {
+            await  _cache.RemoveAsync(CacheKeys.AccountProfile(orgId));
+            await  _cache.RemoveAsync(CacheKeys.AccountVisibility(orgId));
+        }
+        
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated."));
     }
 
