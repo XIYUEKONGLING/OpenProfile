@@ -21,7 +21,7 @@ The API response and Static Generator behavior depend on the `AccountStatus`.
 | **Active** | Full Data | Full Generation | ✅ Allowed | ✅ Allowed |
 | **Suspended** | Restricted (Basic Info Only) | Restricted (No sub-resources) | ✅ **Allowed** | ❌ Forbidden |
 | **Banned** | Banned (Status Only) | Banned (Status Only) | ❌ **Forbidden (Locked)** | ❌ Forbidden |
-| **PendingDeletion**| 404 / Error | Skipped | N/A (Must Restore) | ❌ Forbidden |
+| **PendingDeletion** | 404 / Error | Skipped | N/A (Must Restore) | ❌ Forbidden |
 
 ### 1.4 Update Semantics
 
@@ -39,7 +39,7 @@ These endpoints provide information about the server instance, enabled features,
 | **GET** | `/api` | Get combined server info, features, and site metadata. | N/A | `ServerResponseDto` | `api/index.json` |
 | **GET** | `/api/info` | Get standalone server version and mode. | N/A | `ServerInfoDto` | `api/info.json` |
 | **GET** | `/api/meta` | Get standalone site branding metadata. | N/A | `SiteMetadataDto` | `api/meta.json` |
-| **GET** | `/api/features` | **NEW** Get server feature flags (Email enabled, Registration allowed, etc.). | N/A | `ServerFeaturesDto` | `api/features.json` |
+| **GET** | `/api/features` | Get server feature flags (Email/Registration status). | N/A | `ServerFeaturesDto` | `api/features.json` |
 
 ### 2.1 Admin Management (Protected)
 
@@ -47,8 +47,8 @@ Manage site branding (Site Name, Description, Logo, etc.).
 
 | Method | Endpoint | Description | Permission | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **POST** | `/api/admin/meta` | **Full Update** site metadata. | AdminOrHigher | `UpdateSiteMetadataRequestDto` | `MessageResponse` |
-| **PATCH** | `/api/admin/meta` | **Partial Update** site metadata. | AdminOrHigher | `UpdateSiteMetadataRequestDto` | `MessageResponse` |
+| **POST** | `/api/admin/meta` | **Full Update** site metadata. | `AdminOrHigher` | `UpdateSiteMetadataRequestDto` | `MessageResponse` |
+| **PATCH** | `/api/admin/meta` | **Partial Update** site metadata. | `AdminOrHigher` | `UpdateSiteMetadataRequestDto` | `MessageResponse` |
 
 ---
 
@@ -57,10 +57,10 @@ Manage site branding (Site Name, Description, Logo, etc.).
 Authentication and Registration flow with mandatory email verification support.
 
 ### 3.1 Flow Logic
-1.  **Check Configuration**: Call `GET /api/features` (or auth config) to check `EmailVerification`.
-2.  **Request Code (If required)**: If `true`, call `POST /api/auth/send-code` with `{ email, type: 0 }`.
-3.  **Register**: Call `POST /api/auth/register` including the `code`. The account is created as **Verified** and **Logged In** atomically.
-4. **Account Type Restriction**: Only accounts of type `Personal` and `System` are allowed to perform login and password recovery. `Organization` accounts are non-login entities.
+1. **Check Configuration**: Call `GET /api/features` to check `EmailVerification`.
+2. **Request Code (If required)**: If `true`, call `POST /api/auth/send-code` with `{ email, type: 0 }`.
+3. **Register**: Call `POST /api/auth/register` including the `code`. The account is created as **Verified** and **Logged In** atomically.
+4. **Account Type Restriction**: Only accounts of type `Personal` and `System` are allowed to login. `Organization` accounts are non-login entities.
 
 | Method | Endpoint | Description | Auth | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -77,19 +77,20 @@ Authentication and Registration flow with mandatory email verification support.
 ## 4. Business Logic Details (Block & Follow)
 
 ### 4.1 Block Priority
+
 When User A attempts to Follow User B, the system checks:
-1.  Does A Block B? → **Yes**: Follow Forbidden.
-2.  Does B Block A? → **Yes**: Follow Forbidden (Return 403 or 404).
+1. Does A Block B? → **Yes**: Follow Forbidden.
+2. Does B Block A? → **Yes**: Follow Forbidden (Return 403 or 404).
 
 ### 4.2 Block Side Effects
 When User A calls `POST .../block` to block User B:
-1.  If A is Following B → **Auto Unfollow**.
-2.  If B is Following A → **Auto Remove Follower** (B no longer follows A).
+1. If A is Following B → **Auto Unfollow**.
+2. If B is Following A → **Auto Remove Follower** (B no longer follows A).
 
 ### 4.3 Static Generation Privacy
 - **Status Filtering**: When generating `followers.json` or `following.json`, users with `Status != Active` must be filtered out.
 - **Privacy Settings**:
-  - If `AccountSettings.ShowFollowersList == false`, the generator should produce an empty array `[]` (instead of 404) to maintain frontend consistency.
+  - If `AccountSettings.ShowFollowersList == false`, the generator produces `[]` (empty array) to maintain consistency.
   - The same logic applies to `following.json`.
 
 ---
@@ -102,13 +103,14 @@ These endpoints are used by the Static Generator.
 | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/profiles/{profile}` | Get profile info. | `ProfileDto` | `api/profiles/{profile}.json` |
 | **GET** | `/api/profiles/{profile}/memberships` | Get public organizations. | `IEnumerable<PublicOrganizationMembershipDto>` | `api/profiles/{profile}/memberships.json` |
-| **GET** | `/api/profiles/{profile}/members` | Get **public** members (Org only). | `IEnumerable<OrganizationMemberDto>` | `api/profiles/{profile}/members.json` |
+| **GET** | `/api/profiles/{profile}/members` | Get public members (Org). | `IEnumerable<OrganizationMemberDto>` | `api/profiles/{profile}/members.json` |
 | **GET** | `/api/profiles/{profile}/followers` | Get followers list. | `IEnumerable<FollowerDto>` | `api/profiles/{profile}/followers.json` |
 | **GET** | `/api/profiles/{profile}/following` | Get following list. | `IEnumerable<FollowerDto>` | `api/profiles/{profile}/following.json` |
 | **GET** | `/api/profiles/{profile}/privacy` | Get list privacy status. | `ProfilePrivacyDto` | `api/profiles/{profile}/privacy.json` |
-| **GET** | `/api/profiles/{profile}/created-at` | Get account creation date. | `AccountCreatedDateDto` | `api/profiles/{profile}/created-at.json` |
+| **GET** | `/api/profiles/{profile}/created-at` | Get creation date. | `AccountCreatedDateDto` | `api/profiles/{profile}/created-at.json` |
 
 ### 5.1 Public Sub-Resources
+
 Specific endpoints for sub-resources (also used by Static Generator).
 
 | Endpoint | Response Data (DTO) | Static File |
@@ -119,28 +121,30 @@ Specific endpoints for sub-resources (also used by Static Generator).
 | `/api/profiles/{profile}/socials` | `IEnumerable<SocialLinkDto>` | `.../socials.json` |
 | `/api/profiles/{profile}/contacts` | `IEnumerable<ContactMethodDto>` | `.../contacts.json` |
 | `/api/profiles/{profile}/gallery` | `IEnumerable<GalleryItemDto>` | `.../gallery.json` |
-| `/api/profiles/{profile}/certificates`| `IEnumerable<CertificateDto>` | `.../certificates.json` |
-| `/api/profiles/{profile}/sponsorships`| `IEnumerable<SponsorshipItemDto>` | `.../sponsorships.json` |
+| `/api/profiles/{profile}/certificates` | `IEnumerable<CertificateDto>` | `.../certificates.json` |
+| `/api/profiles/{profile}/sponsorships` | `IEnumerable<SponsorshipItemDto>` | `.../sponsorships.json` |
 
 ---
 
 ## 6. Personal Management (Dynamic / Protected)
 
 ### 6.1 Lifecycle
+
 | Method | Endpoint | Description | Permission | Request Body | Response Data |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **DELETE** | `/api/me` | **Request Account Deletion**. | Owner | N/A | `MessageResponse` |
 | **POST** | `/api/me/restore` | **Restore Account**. | Owner | N/A | `MessageResponse` |
 
 ### 6.2 Account & Security
+
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/me` | Get full account details. | N/A | `AccountDto` |
 | **GET** | `/api/me/permissions` | **Get Role and Type**. | N/A | `AccountPermissionsDto` |
 | **GET** | `/api/me/emails` | List all emails. | N/A | `IEnumerable<AccountEmailDto>` |
 | **POST** | `/api/me/emails` | Add new email. | `AddEmailRequestDto` | `MessageResponse` |
-| **POST** | `/api/me/emails/{email}/primary`| Set as primary. | N/A | `MessageResponse` |
-| **POST** | `/api/me/emails/{email}/verify` | Verify email with code. | `VerifyEmailRequestDto`| `MessageResponse` |
+| **POST** | `/api/me/emails/{email}/primary` | Set as primary. | N/A | `MessageResponse` |
+| **POST** | `/api/me/emails/{email}/verify` | Verify email with code. | `VerifyEmailRequestDto` | `MessageResponse` |
 | **DELETE** | `/api/me/emails/{email}` | Remove email. | N/A | `MessageResponse` |
 | **POST** | `/api/me/password` | Change password. | `ChangePasswordRequestDto` | `MessageResponse` |
 | **GET** | `/api/me/blocks` | **List blocked users**. | N/A | `IEnumerable<BlockDto>` |
@@ -149,6 +153,7 @@ Specific endpoints for sub-resources (also used by Static Generator).
 | **GET** | `/api/me/following` | List my following. | N/A | `IEnumerable<FollowerDto>` |
 
 ### 6.3 Settings & Profile
+
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/me/settings` | Get personal settings. | N/A | `PersonalSettingsDto` |
@@ -159,13 +164,15 @@ Specific endpoints for sub-resources (also used by Static Generator).
 | **PATCH** | `/api/me/profile` | Partial update profile. | `UpdateProfileRequestDto` | `MessageResponse` |
 
 ### 6.4 Invitations (Incoming)
+
 | Method | Endpoint | Description | Request Body | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/me/invitations` | List invitations. | N/A | `IEnumerable<OrganizationInvitationDto>` |
-| **POST** | `.../{id}/accept` | Accept invitation. | N/A | `MessageResponse` |
-| **POST** | `.../{id}/decline` | Decline invitation. | N/A | `MessageResponse` |
+| **POST** | `/api/me/invitations/{id}/accept` | Accept invitation. | N/A | `MessageResponse` |
+| **POST** | `/api/me/invitations/{id}/decline` | Decline invitation. | N/A | `MessageResponse` |
 
 ### 6.5 Social Actions
+
 *Operator must be in **Active** status.*
 
 | Method | Endpoint | Description | Response Data (DTO) |
@@ -177,8 +184,8 @@ Specific endpoints for sub-resources (also used by Static Generator).
 | **DELETE** | `/api/profiles/{profile}/block` | **Unblock** target. | `MessageResponse` |
 
 ### 6.6 Sub-Resources (Management)
-Endpoints follow the pattern `/api/me/{resource}`.
-All **POST/PATCH** requests return `MessageResponse`.
+
+Endpoints follow the pattern `/api/me/{resource}`. All **POST/PATCH** return `MessageResponse`.
 
 | Resource (URL Part) | GET Response (DTO) | CREATE/UPDATE Request (DTO) |
 | :--- | :--- | :--- |
@@ -196,10 +203,10 @@ All **POST/PATCH** requests return `MessageResponse`.
 | Method | Endpoint | Description | Request Body | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/me/notifications` | List notifications. | Query (`page`, `unreadOnly`) | `PagedResponse<NotificationDto>` |
-| **GET** | `.../unread-count` | Get total unread. | N/A | `int` |
-| **PATCH** | `.../{id}/read` | Mark as read. | N/A | `MessageResponse` |
-| **POST** | `.../read-all` | Mark all read. | N/A | `MessageResponse` |
-| **DELETE** | `.../{id}` | Delete notification. | N/A | `MessageResponse` |
+| **GET** | `/api/me/notifications/unread-count` | Get total unread. | N/A | `int` |
+| **PATCH** | `/api/me/notifications/{id}/read` | Mark as read. | N/A | `MessageResponse` |
+| **POST** | `/api/me/notifications/read-all` | Mark all read. | N/A | `MessageResponse` |
+| **DELETE** | `/api/me/notifications/{id}` | Delete notification. | N/A | `MessageResponse` |
 | **DELETE** | `/api/me/notifications` | Delete all read. | N/A | `MessageResponse` |
 
 ---
@@ -207,54 +214,55 @@ All **POST/PATCH** requests return `MessageResponse`.
 ## 7. Organization Management (Dynamic / Protected)
 
 ### 7.1 Lifecycle
+
 | Method | Endpoint | Description | Permission | Request Body | Response |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs` | List my organizations. | Authenticated | N/A | `IEnumerable<OrganizationDto>` |
 | **POST** | `/api/orgs` | Create new organization. | Authenticated | `CreateOrganizationRequestDto` | `Guid` (Org ID) |
 | **DELETE** | `/api/orgs/{org}` | **Request Dissolution**. | Owner | N/A | `MessageResponse` |
-| **POST** | `.../{org}/restore` | **Restore Organization**. | Owner | N/A | `MessageResponse` |
+| **POST** | `/api/orgs/{org}/restore` | **Restore Organization**. | Owner | N/A | `MessageResponse` |
 
 ### 7.2 Settings & Profile
-Settings are restricted to high-level roles, while the Profile (Edit View) is accessible to all members for collaboration.
 
 | Method | Endpoint | Description | Permission | Request Body | Response |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs/{org}` | Org Dashboard summary. | Any Member | N/A | `OrganizationDto` |
-| **GET** | `.../settings` | Get org settings. | Owner/Admin | N/A | `OrganizationSettingsDto` |
-| **POST** | `.../settings` | Full update settings. | Owner | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
-| **PATCH** | `.../settings` | Partial update settings.| Owner | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
-| **GET** | `.../profile` | **Get profile (Edit View).** | **Any Member** | N/A | `ProfileDto` |
-| **POST** | `.../profile` | Full update profile. | Owner/Admin | `UpdateProfileRequestDto` | `MessageResponse` |
-| **PATCH** | `.../profile` | Partial update profile. | Owner/Admin | `UpdateProfileRequestDto` | `MessageResponse` |
-| **GET** | `.../follow-stats` | Get org follow counts. | Any Member | N/A | `FollowCountsDto` |
-| **GET** | `.../followers` | List org followers. | Any Member | N/A | `IEnumerable<FollowerDto>` |
-| **GET** | `.../following` | List org following. | Any Member | N/A | `IEnumerable<FollowerDto>` |
+| **GET** | `/api/orgs/{org}/settings` | Get org settings. | Owner/Admin | N/A | `OrganizationSettingsDto` |
+| **POST** | `/api/orgs/{org}/settings` | Full update settings. | Owner | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
+| **PATCH** | `/api/orgs/{org}/settings` | Partial update settings. | Owner | `UpdateOrganizationSettingsRequestDto` | `MessageResponse` |
+| **GET** | `/api/orgs/{org}/profile` | **Get profile (Edit View).** | **Any Member** | N/A | `ProfileDto` |
+| **POST** | `/api/orgs/{org}/profile` | Full update profile. | Owner/Admin | `UpdateProfileRequestDto` | `MessageResponse` |
+| **PATCH** | `/api/orgs/{org}/profile` | Partial update profile. | Owner/Admin | `UpdateProfileRequestDto` | `MessageResponse` |
+| **GET** | `/api/orgs/{org}/follow-stats` | Get org follow counts. | Any Member | N/A | `FollowCountsDto` |
+| **GET** | `/api/orgs/{org}/followers` | List org followers. | Any Member | N/A | `IEnumerable<FollowerDto>` |
+| **GET** | `/api/orgs/{org}/following` | List org following. | Any Member | N/A | `IEnumerable<FollowerDto>` |
 
 ### 7.3 Member Management
+
 | Method | Endpoint | Description | Permission | Request Body | Response |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `.../members` | List all members. | Any Member | N/A | `IEnumerable<OrganizationMemberDto>` |
-| **GET** | `.../members/me/role` | Get my Role. | Any Member | N/A | `MemberRoleDto` |
-| **POST** | `.../members` | Invite/Add member. | Owner/Admin* | `InviteMemberRequestDto` | `MessageResponse` |
-| **PATCH** | `.../members/me` | Update my info/visibility.| Any Member | `UpdateMemberRequestDto` | `MessageResponse` |
-| **DELETE** | `.../members/me` | Leave organization. | Any Member | N/A | `MessageResponse` |
-| **PATCH** | `.../members/{user}` | Update member role. | Owner | `UpdateMemberRequestDto` | `MessageResponse` |
-| **DELETE** | `.../members/{user}` | Kick member. | Owner/Admin | N/A | `MessageResponse` |
+| **GET** | `/api/orgs/{org}/members` | List all members. | Any Member | N/A | `IEnumerable<OrganizationMemberDto>` |
+| **GET** | `/api/orgs/{org}/members/me/role` | Get my Role. | Any Member | N/A | `MemberRoleDto` |
+| **POST** | `/api/orgs/{org}/members` | Invite/Add member. | Owner/Admin* | `InviteMemberRequestDto` | `MessageResponse` |
+| **PATCH** | `/api/orgs/{org}/members/me` | Update my info. | Any Member | `UpdateMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `/api/orgs/{org}/members/me` | Leave organization. | Any Member | N/A | `MessageResponse` |
+| **PATCH** | `/api/orgs/{org}/members/{user}` | Update member role. | Owner | `UpdateMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `/api/orgs/{org}/members/{user}` | Kick member. | Owner/Admin | N/A | `MessageResponse` |
 
 *\*Members may invite others if `AllowMemberInvite` is enabled in Settings.*
 
 ### 7.4 Invitations (Outgoing)
+
 | Method | Endpoint | Description | Permission | Request Body | Response |
 | :--- | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `.../invitations` | List pending invites. | Owner/Admin | N/A | `IEnumerable<OrganizationInvitationDto>` |
-| **POST** | `.../invitations` | Send invitation. | Owner/Admin* | `InviteMemberRequestDto` | `MessageResponse` |
-| **DELETE** | `.../invitations/{id}`| Revoke invitation. | Owner/Admin | N/A | `MessageResponse` |
+| **GET** | `/api/orgs/{org}/invitations` | List pending invites. | Owner/Admin | N/A | `IEnumerable<OrganizationInvitationDto>` |
+| **POST** | `/api/orgs/{org}/invitations` | Send invitation. | Owner/Admin* | `InviteMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `/api/orgs/{org}/invitations/{id}` | Revoke invitation. | Owner/Admin | N/A | `MessageResponse` |
 
 ### 7.5 Sub-Resources (Portfolio Management)
 
-These endpoints manage the organization's portfolio.
-- **Read Access**: Any member (including **Guest**) can GET these resources to view the "Edit View" (includes items hidden from the public).
-- **Write Access**: Restricted to **Owner** and **Admin** only.
+- **Read Access**: Any member can GET resources to view the "Edit View".
+- **Write Access**: Restricted to **Owner** and **Admin**.
 
 | Resource (URL Part) | GET Response (DTO) | CREATE/UPDATE Request (DTO) |
 | :--- | :--- | :--- |
@@ -279,34 +287,34 @@ Admins can perform operations that bypass standard checks.
 
 | Method | Endpoint | Description | Permission | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/admin/system/status` | **System Status Overview**. | AdminOrHigher | `SystemStatusDto` |
+| **GET** | `/api/admin/system/status` | **System Status Overview**. | `AdminOrHigher` | `SystemStatusDto` |
 
 ### 8.1 User & Account Management
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/admin/users` | List users. | Query (`UserFilterDto`) | `PagedResponse<UserAdminDto>` |
+| **GET** | `/api/admin/users` | List users. | `UserFilterDto` | `PagedResponse<UserAdminDto>` |
 | **POST** | `/api/admin/users` | Force create user/org. | `CreateUserRequestDto` | `UserAdminDto` |
-| **PATCH** | `.../{user}/status` | Change status. | `UpdateUserStatusRequestDto` | `MessageResponse` |
-| **DELETE** | `.../{user}` | **Physical Delete**. | N/A | `MessageResponse` |
-| **POST** | `.../{user}/role` | Promote/Demote. | `UpdateUserRoleRequestDto` | `MessageResponse` |
-| **POST** | `.../{user}/password/reset`| **Force Reset Password**. | AdminOrHigher | `AdminResetPasswordRequestDto`| `MessageResponse` |
-| **POST** | `.../{user}/notifications`| **Send ystem notification**. | AdminOrHigher | `CreateNotificationRequestDto`| `MessageResponse` |
-| **GET** | `.../{user}/emails` | **List User Emails**. | AdminOrHigher | N/A | `IEnumerable<AccountEmailDto>` |
-| **POST** | `.../{user}/emails` | **Force Add Email**. | AdminOrHigher | `AddEmailRequestDto` | `MessageResponse` |
-| **PATCH** | `.../{user}/emails/{email}`| **Update Email Status**. | AdminOrHigher | `AdminUpdateEmailRequestDto` | `MessageResponse` |
-| **DELETE** | `.../{user}/emails/{email}`| **Force Remove Email**. | AdminOrHigher | N/A | `MessageResponse` |
+| **PATCH** | `/api/admin/users/{user}/status` | Change status. | `UpdateUserStatusRequestDto` | `MessageResponse` |
+| **DELETE** | `/api/admin/users/{user}` | **Physical Delete**. | N/A | `MessageResponse` |
+| **POST** | `/api/admin/users/{user}/role` | Promote/Demote. | `UpdateUserRoleRequestDto` | `MessageResponse` |
+| **POST** | `/api/admin/users/{user}/password/reset` | **Force Reset Password**. | `AdminOrHigher` | `MessageResponse` |
+| **POST** | `/api/admin/users/{user}/notifications` | **Send notification**. | `AdminOrHigher` | `MessageResponse` |
+| **GET** | `/api/admin/users/{user}/emails` | **List User Emails**. | `AdminOrHigher` | `IEnumerable<AccountEmailDto>` |
+| **POST** | `/api/admin/users/{user}/emails` | **Force Add Email**. | `AdminOrHigher` | `MessageResponse` |
+| **PATCH** | `/api/admin/users/{user}/emails/{email}` | **Update Email Status**. | `AdminOrHigher` | `MessageResponse` |
+| **DELETE** | `/api/admin/users/{user}/emails/{email}` | **Force Remove Email**. | `AdminOrHigher` | `MessageResponse` |
 
 ### 8.2 Organization Administration (Force Actions)
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `.../orgs/{org}/members` | **List Members**. | N/A | `IEnumerable<OrganizationMemberDto>` |
-| **POST** | `.../orgs/{org}/members` | **Force Add**. | `InviteMemberRequestDto` | `MessageResponse` |
-| **PATCH** | `.../members/{user}` | **Force Update**. | `UpdateMemberRequestDto` | `MessageResponse` |
-| **DELETE** | `.../members/{user}` | **Force Kick**. | N/A | `MessageResponse` |
+| **GET** | `/api/admin/orgs/{org}/members` | **List Members**. | N/A | `IEnumerable<OrganizationMemberDto>` |
+| **POST** | `/api/admin/orgs/{org}/members` | **Force Add**. | `InviteMemberRequestDto` | `MessageResponse` |
+| **PATCH** | `/api/admin/orgs/{org}/members/{user}` | **Force Update**. | `UpdateMemberRequestDto` | `MessageResponse` |
+| **DELETE** | `/api/admin/orgs/{org}/members/{user}` | **Force Kick**. | N/A | `MessageResponse` |
 
 ### 8.3 System Configuration (Runtime)
 | Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `.../system-settings` | List all settings. | N/A | `IEnumerable<SystemSettingDto>` |
-| **GET** | `.../system-settings/{key}`| Get specific setting. | N/A | `SystemSettingDto` |
-| **PUT** | `.../system-settings/{key}`| **Update** setting. | `UpdateSystemSettingRequestDto` | `MessageResponse` |
+| **GET** | `/api/admin/system-settings` | List all settings. | N/A | `IEnumerable<SystemSettingDto>` |
+| **GET** | `/api/admin/system-settings/{key}` | Get specific setting. | N/A | `SystemSettingDto` |
+| **PUT** | `/api/admin/system-settings/{key}` | **Update** setting. | `UpdateSystemSettingRequestDto` | `MessageResponse` |
