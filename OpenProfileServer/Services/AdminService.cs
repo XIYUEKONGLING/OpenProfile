@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
@@ -23,8 +22,6 @@ public class AdminService : IAdminService
     private readonly IFusionCache _cache;
     private readonly IAuthService _authService; // Used to revoke sessions
     private readonly INotificationService _notificationService;
-    
-    private static readonly Regex AccountNameRegex = new("^[a-zA-Z0-9_-]{3,64}$", RegexOptions.Compiled);
 
     public AdminService(
         ApplicationDbContext context,
@@ -197,7 +194,7 @@ public class AdminService : IAdminService
     public async Task<ApiResponse<UserAdminDto>> CreateUserAsync(Guid adminId, CreateUserRequestDto dto)
     {
         // 1. Validation
-        if (!AccountNameRegex.IsMatch(dto.AccountName))
+        if (!AccountNameValidator.IsValid(dto.AccountName))
             return ApiResponse<UserAdminDto>.Failure("Invalid account name format.");
 
         var accountNameLower = dto.AccountName.ToLowerInvariant();

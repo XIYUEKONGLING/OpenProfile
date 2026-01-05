@@ -1,9 +1,9 @@
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
+using OpenProfileServer.Utilities;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Auth;
 using OpenProfileServer.Models.DTOs.Common;
@@ -12,7 +12,6 @@ using OpenProfileServer.Models.Entities.Auth;
 using OpenProfileServer.Models.Entities.Profiles;
 using OpenProfileServer.Models.Entities.Settings;
 using OpenProfileServer.Models.Enums;
-using OpenProfileServer.Utilities;
 
 namespace OpenProfileServer.Services;
 
@@ -24,8 +23,6 @@ public class AuthService : IAuthService
     private readonly IVerificationService _verificationService;
     private readonly IEmailService _emailService;
     private readonly JwtOptions _jwtOptions;
-
-    private static readonly Regex AccountNameRegex = new("^[a-zA-Z0-9_-]{3,64}$", RegexOptions.Compiled);
 
     public AuthService(
         ApplicationDbContext context, 
@@ -97,7 +94,7 @@ public class AuthService : IAuthService
         var emailServiceUp = _emailService.IsEnabled;
         
         // 2. Format Validation
-        if (!AccountNameRegex.IsMatch(dto.AccountName))
+        if (!AccountNameValidator.IsValid(dto.AccountName))
             return ApiResponse<TokenResponseDto>.Failure("Invalid account name.");
 
         // 3. Uniqueness Check

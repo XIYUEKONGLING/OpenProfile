@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Data;
@@ -27,8 +26,6 @@ public class OrganizationService : IOrganizationService
     private readonly INotificationService _notificationService;
     private readonly ISystemSettingService _settingService;
     private readonly ISocialService _socialService;
-    
-    private static readonly Regex AccountNameRegex = new("^[a-zA-Z0-9_-]{3,64}$", RegexOptions.Compiled);
 
     public OrganizationService(
         ApplicationDbContext context, 
@@ -94,7 +91,7 @@ public class OrganizationService : IOrganizationService
 
     public async Task<ApiResponse<Guid>> CreateOrganizationAsync(Guid ownerId, CreateOrganizationRequestDto dto)
     {
-        if (!AccountNameRegex.IsMatch(dto.AccountName))
+        if (!AccountNameValidator.IsValid(dto.AccountName))
             return ApiResponse<Guid>.Failure("Invalid account name.");
 
         if (await _context.Accounts.AnyAsync(a => a.AccountName.ToLower() == dto.AccountName.ToLowerInvariant()))
