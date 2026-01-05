@@ -237,7 +237,7 @@ public class AdminService : IAdminService
                 LastLogin = DateTime.UtcNow
             };
 
-            if (dto.Password != null)
+            if (dto.Password != null && dto.Type == AccountType.Personal)
             {
                 var (hash, salt) = CryptographyProvider.CreateHash(dto.Password);
             
