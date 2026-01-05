@@ -1,5 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using OpenProfileServer.Models.Enums;
 
 namespace OpenProfileServer.Models.Entities.Base;
 
@@ -15,6 +16,11 @@ public abstract class AccountSettings
 
     [Required]
     public virtual Account Account { get; set; } = null!;
+    
+    public Visibility Visibility { get; set; } = Visibility.Public;
+    
+    //  // Default visibility for newly created lists/items.
+    public Visibility DefaultVisibility { get; set; } = Visibility.Public;
     
     /// <summary>
     /// Whether others are allowed to follow this account.

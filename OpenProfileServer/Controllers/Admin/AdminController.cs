@@ -146,6 +146,16 @@ public class AdminController : ControllerBase
         return result.Status ? Ok(result) : BadRequest(result);
     }
 
+    /// <summary>
+    /// POST /api/admin/users/{user}/notifications
+    /// Send a system notification to a specific user.
+    /// </summary>
+    [HttpPost("users/{user}/notifications")]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> SendUserNotification(Guid user, [FromBody] CreateNotificationRequestDto dto)
+    {
+        var result = await _adminService.SendNotificationAsync(GetAdminId(), user, dto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
     
     // ==========================================
     // Organization Management (Admin Override)

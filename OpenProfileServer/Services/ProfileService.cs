@@ -82,6 +82,7 @@ public class ProfileService : IProfileService
                 AccountName = profileDto.AccountName,
                 Type = profileDto.Type,
                 Status = AccountStatus.Banned,
+                Visibility = profileDto.Visibility, // Preserve visibility info
                 DisplayName = "Account Banned",
                 Description = "This account has been suspended for violating our terms of service."
             });
@@ -104,12 +105,46 @@ public class ProfileService : IProfileService
     private async Task<ProfileDto?> FetchProfileFromDbAsync(Guid id)
     {
         // Polymorphic query to get base account and the specific profile
+        // Include Settings to check Visibility
         var account = await _context.Accounts
             .AsNoTracking()
             .Include(a => a.Profile) // Base profile
+            .Include(a => a.Settings) // Settings for Visibility check
             .FirstOrDefaultAsync(a => a.Id == id);
 
         if (account == null || account.Profile == null) return null;
+
+        // VISIBILITY CHECK
+        // If the account is not Public, return a restricted/empty profile view.
+        // This satisfies the requirement: "Return empty info... distinct from 'not found'".
+        if (account.Settings != null && account.Settings.Visibility != Visibility.Public)
+        {
+            return new ProfileDto
+            {
+                Id = account.Id,
+                AccountName = account.AccountName,
+                Type = account.Type,
+                Status = account.Status,
+                Visibility = account.Settings.Visibility,
+                // All other fields remain null/default (Empty Info)
+                DisplayName = null,
+                Avatar = null,
+                Background = null,
+                Description = null,
+                Content = null,
+                Location = null,
+                Website = null,
+                TimeZone = null,
+                Pronouns = null,
+                JobTitle = null,
+                CurrentCompany = null,
+                CurrentSchool = null,
+                Birthday = null,
+                FoundedDate = null,
+                FollowersCount = 0,
+                FollowingCount = 0
+            };
+        }
 
         // Base DTO
         var dto = new ProfileDto
@@ -118,6 +153,7 @@ public class ProfileService : IProfileService
             AccountName = account.AccountName,
             Type = account.Type,
             Status = account.Status,
+            Visibility = account.Settings?.Visibility ?? Visibility.Public, // Populate Visibility
             DisplayName = account.Profile.DisplayName,
             Description = account.Profile.Description,
             Content = account.Profile.Content,

@@ -47,4 +47,6 @@ public interface IAdminService
     Task<ApiResponse<MessageResponse>> AdminDeleteEmailAsync(Guid targetUserId, string email);
 
     Task<ApiResponse<MessageResponse>> AdminResetPasswordAsync(Guid adminId, Guid targetUserId, string newPassword);
+    
+    Task<ApiResponse<MessageResponse>> SendNotificationAsync(Guid adminId, Guid targetUserId, CreateNotificationRequestDto dto);
 }

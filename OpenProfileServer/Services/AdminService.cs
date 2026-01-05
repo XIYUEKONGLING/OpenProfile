@@ -22,14 +22,20 @@ public class AdminService : IAdminService
     private readonly ApplicationDbContext _context;
     private readonly IFusionCache _cache;
     private readonly IAuthService _authService; // Used to revoke sessions
+    private readonly INotificationService _notificationService;
     
     private static readonly Regex AccountNameRegex = new("^[a-zA-Z0-9_-]{3,64}$", RegexOptions.Compiled);
 
-    public AdminService(ApplicationDbContext context, IFusionCache cache, IAuthService authService)
+    public AdminService(
+        ApplicationDbContext context,
+        IFusionCache cache, 
+        IAuthService authService, 
+        INotificationService notificationService)
     {
         _context = context;
         _cache = cache;
         _authService = authService;
+        _notificationService = notificationService;
     }
 
     public async Task<ApiResponse<PagedResponse<UserAdminDto>>> GetUsersAsync(PaginationFilter pagination, UserFilterDto filter)
@@ -577,6 +583,26 @@ public class AdminService : IAdminService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email removed by administrator."));
     }
 
+    public async Task<ApiResponse<MessageResponse>> SendNotificationAsync(Guid adminId, Guid targetUserId, CreateNotificationRequestDto dto)
+    {
+        // 1. Validate Target User Exists
+        var targetExists = await _context.Accounts.AnyAsync(a => a.Id == targetUserId);
+        if (!targetExists)
+        {
+            return ApiResponse<MessageResponse>.Failure("Target user not found.");
+        }
 
-
+        // 2. Send Notification
+        // We force the Type to Administrator if not set, or respect the input type.
+        // The CreateNotificationRequestDto defaults to Administrator.
+        await _notificationService.CreateNotificationAsync(
+            targetUserId, 
+            dto.Title, 
+            dto.Body, 
+            dto.Type, 
+            dto.Url, 
+            dto.Data
+        );
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Notification sent successfully."));
+    }
 }
