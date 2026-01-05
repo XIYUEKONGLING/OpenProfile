@@ -204,19 +204,26 @@ public class AdminService : IAdminService
         if (await _context.Accounts.AnyAsync(a => a.AccountName.ToLower() == accountNameLower))
             return ApiResponse<UserAdminDto>.Failure("Account name already taken.");
 
-        if (await _context.AccountEmails.AnyAsync(e => e.Email.ToLower() == dto.Email.ToLower()))
-            return ApiResponse<UserAdminDto>.Failure("Email already in use.");
-
+        if (dto.Email != null)
+        {
+            if (await _context.AccountEmails.AnyAsync(e => e.Email.ToLower() == dto.Email.ToLower()))
+                return ApiResponse<UserAdminDto>.Failure("Email already in use.");
+        }
+        
         // Prevent creating Root via API
         if (dto.Role == AccountRole.Root)
             return ApiResponse<UserAdminDto>.Failure("Cannot create Root account via API.");
 
+        if (dto.Type != AccountType.Personal && dto.Type != AccountType.Organization)
+        {
+            return ApiResponse<UserAdminDto>.Failure("Cannot create user via API.");
+        }
+        
         // 2. Transaction
         await using var transaction = await _context.Database.BeginTransactionAsync();
         try
         {
             var accountId = Guid.NewGuid();
-            var (hash, salt) = CryptographyProvider.CreateHash(dto.Password);
 
             // Base Account
             var account = new Account
@@ -230,29 +237,39 @@ public class AdminService : IAdminService
                 LastLogin = DateTime.UtcNow
             };
 
-            // Credential
-            var credential = new AccountCredential
+            if (dto.Password != null)
             {
-                AccountId = accountId,
-                PasswordHash = hash,
-                PasswordSalt = salt,
-                UpdatedAt = DateTime.UtcNow
-            };
+                var (hash, salt) = CryptographyProvider.CreateHash(dto.Password);
             
-            // Email (Auto-Verified)
-            var email = new AccountEmail
+                // Credential
+                var credential = new AccountCredential
+                {
+                    AccountId = accountId,
+                    PasswordHash = hash,
+                    PasswordSalt = salt,
+                    UpdatedAt = DateTime.UtcNow
+                };
+                
+                _context.AccountCredentials.Add(credential);
+            }
+
+            if (dto.Email != null)
             {
-                AccountId = accountId,
-                Email = dto.Email,
-                IsPrimary = true,
-                IsVerified = true,
-                VerifiedAt = DateTime.UtcNow,
-                CreatedAt = DateTime.UtcNow
-            };
+                // Email (Auto-Verified)
+                var email = new AccountEmail
+                {
+                    AccountId = accountId,
+                    Email = dto.Email,
+                    IsPrimary = true,
+                    IsVerified = true,
+                    VerifiedAt = DateTime.UtcNow,
+                    CreatedAt = DateTime.UtcNow
+                };
+                
+                _context.AccountEmails.Add(email);
+            }
 
             _context.Accounts.Add(account);
-            _context.AccountCredentials.Add(credential);
-            _context.AccountEmails.Add(email);
 
             // Polymorphic Logic
             if (dto.Type == AccountType.Personal)
@@ -306,7 +323,7 @@ public class AdminService : IAdminService
             {
                 Id = accountId,
                 AccountName = account.AccountName,
-                Email = dto.Email,
+                Email = dto.Email ?? string.Empty,
                 Type = account.Type,
                 Role = account.Role,
                 Status = account.Status,
