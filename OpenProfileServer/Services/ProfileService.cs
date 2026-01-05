@@ -119,6 +119,9 @@ public class ProfileService : IProfileService
         // This satisfies the requirement: "Return empty info... distinct from 'not found'".
         if (account.Settings != null && account.Settings.Visibility != Visibility.Public)
         {
+            var followersCount = account.Settings.ShowFollowersList ? await _context.AccountFollowers.CountAsync(f => f.FollowingId == id) : 0;
+            var followingCount = account.Settings.ShowFollowingList ? await _context.AccountFollowers.CountAsync(f => f.FollowerId == id) : 0;
+            
             return new ProfileDto
             {
                 Id = account.Id,
@@ -126,11 +129,22 @@ public class ProfileService : IProfileService
                 Type = account.Type,
                 Status = account.Status,
                 Visibility = account.Settings.Visibility,
+                
+                // Basic fields
+                DisplayName = account.Profile.DisplayName,
+                Description = account.Profile.Description,
+                Avatar = new AssetDto 
+                { 
+                    Type = account.Profile.Avatar.Type, 
+                    Value = account.Profile.Avatar.Value, 
+                    Tag = account.Profile.Avatar.Tag 
+                },
+                
+                FollowersCount = followersCount,
+                FollowingCount = followingCount,
+                
                 // All other fields remain null/default (Empty Info)
-                DisplayName = null,
-                Avatar = null,
                 Background = null,
-                Description = null,
                 Content = null,
                 Location = null,
                 Website = null,
@@ -141,8 +155,6 @@ public class ProfileService : IProfileService
                 CurrentSchool = null,
                 Birthday = null,
                 FoundedDate = null,
-                FollowersCount = 0,
-                FollowingCount = 0
             };
         }
 
@@ -198,8 +210,20 @@ public class ProfileService : IProfileService
 
         // Statistics (Count) - Usually cached separately or updated periodically.
         // For simplicity, we count here, but in high-load, this should be denormalized.
-        dto.FollowersCount = await _context.AccountFollowers.CountAsync(f => f.FollowingId == id);
-        dto.FollowingCount = await _context.AccountFollowers.CountAsync(f => f.FollowerId == id);
+        // dto.FollowersCount = await _context.AccountFollowers.CountAsync(f => f.FollowingId == id);
+        // dto.FollowingCount = await _context.AccountFollowers.CountAsync(f => f.FollowerId == id);
+        if (account.Settings != null)
+        {
+            if (account.Settings.ShowFollowersList)
+            {
+                dto.FollowersCount = await _context.AccountFollowers.CountAsync(f => f.FollowingId == id);
+            }
+
+            if (account.Settings.ShowFollowingList)
+            {
+                dto.FollowingCount = await _context.AccountFollowers.CountAsync(f => f.FollowerId == id);
+            }
+        }
 
         return dto;
     }
