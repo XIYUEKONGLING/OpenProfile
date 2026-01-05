@@ -287,29 +287,55 @@ public class OrganizationController : ControllerBase
     }
 
     [HttpDelete("{org}/members/{user}")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> KickMember(string org, Guid user)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> KickMember(string org, string user)
     {
         var orgId = await ResolveOrgId(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
 
-        if (user == Guid.Empty) user = GetUserId(); 
+        Guid targetUserId;
 
-        if (user == GetUserId())
+        // 1. Handle 'me' shortcut (Case-insensitive)
+        if (user.Equals("me", StringComparison.OrdinalIgnoreCase))
         {
-             return Ok(await _orgService.LeaveOrganizationAsync(GetUserId(), orgId.Value));
+            targetUserId = GetUserId();
+        } 
+        // 2. Handle UUID
+        else if (Guid.TryParse(user, out var parsedGuid))
+        {
+            targetUserId = parsedGuid;
+        }
+        // 3. Invalid format
+        else
+        {
+            return BadRequest(ApiResponse<MessageResponse>.Failure("Invalid user identifier. Use 'me' or a valid UUID."));
+        }
+
+        // Logic to leave or kick
+        if (targetUserId == GetUserId())
+        {
+            return Ok(await _orgService.LeaveOrganizationAsync(GetUserId(), orgId.Value));
         }
         
-        var result = await _orgService.RemoveMemberAsync(GetUserId(), orgId.Value, user);
+        var result = await _orgService.RemoveMemberAsync(GetUserId(), orgId.Value, targetUserId);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
+
     [HttpPatch("{org}/members/{user}")]
-    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMember(string org, Guid user, [FromBody] UpdateMemberRequestDto dto)
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMember(string org, string user, [FromBody] UpdateMemberRequestDto dto)
     {
         var orgId = await ResolveOrgId(org);
         if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
-
-        var result = await _orgService.UpdateMemberRoleAsync(GetUserId(), orgId.Value, user, dto);
+        
+        // This endpoint is intended for managing others (Role updates).
+        // 'me' is handled by the separate 'UpdateMyMemberDetails' endpoint.
+        // We validate the UUID here to provide a clear error message instead of a generic 400 binding error.
+        if (!Guid.TryParse(user, out var targetUserId))
+        {
+            return BadRequest(ApiResponse<MessageResponse>.Failure("Invalid user identifier. Expected a valid UUID."));
+        }
+        
+        var result = await _orgService.UpdateMemberRoleAsync(GetUserId(), orgId.Value, targetUserId, dto);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
