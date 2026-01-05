@@ -163,18 +163,33 @@ public class AdminService : IAdminService
         if (target.Id == adminId)
             return ApiResponse<MessageResponse>.Failure("Cannot delete yourself.");
 
-        // Physical Delete
-        // EF Core Cascade Delete is configured in ApplicationDbContext for most relations.
-        // Account is the principal entity.
-        
+        // Physical Delete (Cascades to Profile, Settings, etc.)
         _context.Accounts.Remove(target);
         await _context.SaveChangesAsync();
 
-        // Clean Cache
+        // === Cache Cleanup (Critical Fix) ===
+        // 1. Core Profile Data
         await _cache.RemoveAsync(CacheKeys.AccountProfile(targetUserId));
         await _cache.RemoveAsync(CacheKeys.AccountSettings(targetUserId));
         await _cache.RemoveAsync(CacheKeys.AccountPermissions(targetUserId));
         await _cache.RemoveAsync(CacheKeys.AccountNameMapping(target.AccountName));
+        await _cache.RemoveAsync(CacheKeys.AccountCreatedDate(targetUserId));
+
+        // 2. Sub-Resources
+        await _cache.RemoveAsync(CacheKeys.ProfileWork(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileEducation(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileProjects(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileSocials(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileContacts(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileGallery(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileCertificates(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileSponsorships(targetUserId));
+        
+        // 3. Social Lists
+        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.UserMemberships(targetUserId));
+        // Note: We cannot easily clear "Followers" lists of OTHER users who followed this user 
+        // without iterating them, but FusionCache soft-timeout or natural expiration will handle consistency eventually.
         
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("User permanently deleted."));
     }
@@ -242,53 +257,46 @@ public class AdminService : IAdminService
             // Polymorphic Logic
             if (dto.Type == AccountType.Personal)
             {
-                var profile = new PersonalProfile
+                _context.PersonalProfiles.Add(new PersonalProfile
                 {
                     Id = accountId,
                     Account = account,
                     DisplayName = dto.DisplayName ?? dto.AccountName,
                     Description = "Account created by Administrator."
-                };
-                
-                var settings = new PersonalSettings
+                });
+                _context.PersonalSettings.Add(new PersonalSettings
                 {
                     Id = accountId,
                     Account = account,
                     Visibility = Visibility.Public
-                };
-                
-                var security = new AccountSecurity { AccountId = accountId };
-                
-                _context.PersonalProfiles.Add(profile);
-                _context.PersonalSettings.Add(settings);
-                _context.AccountSecurities.Add(security);
+                });
+                _context.AccountSecurities.Add(new AccountSecurity { AccountId = accountId });
             }
             else if (dto.Type == AccountType.Organization)
             {
-                var profile = new OrganizationProfile
+                _context.OrganizationProfiles.Add(new OrganizationProfile
                 {
                     Id = accountId,
                     Account = account,
                     DisplayName = dto.DisplayName ?? dto.AccountName,
                     Description = "Organization created by Administrator.",
                     FoundedDate = DateOnly.FromDateTime(DateTime.UtcNow)
-                };
-                
-                var settings = new OrganizationSettings
+                });
+                _context.OrganizationSettings.Add(new OrganizationSettings
                 {
                     Id = accountId,
                     Account = account,
                     Visibility = Visibility.Public
-                };
+                });
 
-                _context.OrganizationProfiles.Add(profile);
-                _context.OrganizationSettings.Add(settings);
                 // _context.OrganizationMembers.Add(member);
                 // Create an empty organization. Admin can manage members later via override.
             }
             else
             {
-                return ApiResponse<UserAdminDto>.Failure("Unsupported account type for creation.");
+                // Fallback for other types (e.g. Service) to avoid DB errors
+                // Assuming SystemSettings or ApplicationSettings logic if needed in future
+                return ApiResponse<UserAdminDto>.Failure("Unsupported account type for creation via this endpoint.");
             }
 
             await _context.SaveChangesAsync();
@@ -462,16 +470,12 @@ public class AdminService : IAdminService
         var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
         var target = await _context.Accounts.Include(a => a.Credential).FirstOrDefaultAsync(a => a.Id == targetUserId);
 
-        if (admin == null || target == null)
-            return ApiResponse<MessageResponse>.Failure("Account not found.");
+        if (admin == null || target == null) return ApiResponse<MessageResponse>.Failure("Account not found.");
         
         if (target.Type != AccountType.Personal && target.Type != AccountType.System)
-        {
             return ApiResponse<MessageResponse>.Failure("Password reset is not applicable for Organizations, Applications, or Services.");
-        }
 
-        if (target.Role == AccountRole.Root)
-            return ApiResponse<MessageResponse>.Failure("Cannot reset password for Root account.");
+        if (target.Role == AccountRole.Root) return ApiResponse<MessageResponse>.Failure("Cannot reset password for Root account.");
 
         if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
             return ApiResponse<MessageResponse>.Failure("Administrators cannot reset each other's passwords.");
@@ -479,8 +483,7 @@ public class AdminService : IAdminService
         if (target.Role == AccountRole.Admin && admin.Role != AccountRole.Root)
             return ApiResponse<MessageResponse>.Failure("Only Root can reset administrator passwords.");
 
-        if (target.Credential == null)
-            return ApiResponse<MessageResponse>.Failure("Target account has no credentials.");
+        if (target.Credential == null) return ApiResponse<MessageResponse>.Failure("Target account has no credentials.");
 
         var (hash, salt) = CryptographyProvider.CreateHash(newPassword);
         target.Credential.PasswordHash = hash;
@@ -538,11 +541,8 @@ public class AdminService : IAdminService
 
     public async Task<ApiResponse<MessageResponse>> AdminUpdateEmailAsync(Guid targetUserId, string email, AdminUpdateEmailRequestDto dto)
     {
-        var targetEmail = await _context.AccountEmails
-            .FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.Email == email);
-
-        if (targetEmail == null)
-            return ApiResponse<MessageResponse>.Failure("Email not found.");
+        var targetEmail = await _context.AccountEmails.FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.Email == email);
+        if (targetEmail == null) return ApiResponse<MessageResponse>.Failure("Email not found.");
 
         if (dto.IsVerified.HasValue)
         {
@@ -552,12 +552,9 @@ public class AdminService : IAdminService
 
         if (dto.IsPrimary.HasValue && dto.IsPrimary.Value)
         {
-            if (!targetEmail.IsVerified)
-                return ApiResponse<MessageResponse>.Failure("Cannot set unverified email as primary.");
+            if (!targetEmail.IsVerified) return ApiResponse<MessageResponse>.Failure("Cannot set unverified email as primary.");
 
-            var currentPrimary = await _context.AccountEmails
-                .FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.IsPrimary);
-            
+            var currentPrimary = await _context.AccountEmails.FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.IsPrimary);
             if (currentPrimary != null) currentPrimary.IsPrimary = false;
             targetEmail.IsPrimary = true;
         }
@@ -568,14 +565,10 @@ public class AdminService : IAdminService
 
     public async Task<ApiResponse<MessageResponse>> AdminDeleteEmailAsync(Guid targetUserId, string email)
     {
-        var targetEmail = await _context.AccountEmails
-            .FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.Email == email);
+        var targetEmail = await _context.AccountEmails.FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.Email == email);
+        if (targetEmail == null) return ApiResponse<MessageResponse>.Failure("Email not found.");
 
-        if (targetEmail == null)
-            return ApiResponse<MessageResponse>.Failure("Email not found.");
-
-        if (targetEmail.IsPrimary)
-            return ApiResponse<MessageResponse>.Failure("Cannot delete primary email via this endpoint. Set another primary first.");
+        if (targetEmail.IsPrimary) return ApiResponse<MessageResponse>.Failure("Cannot delete primary email via this endpoint. Set another primary first.");
 
         _context.AccountEmails.Remove(targetEmail);
         await _context.SaveChangesAsync();

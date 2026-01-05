@@ -28,6 +28,13 @@ public static class CacheKeys
     public static string AccountPermissions(Guid accountId) => $"Account:Permissions:{accountId}";
     
     public static string AccountCreatedDate(Guid accountId) => $"Account:CreatedDate:{accountId}";
+    
+    /// <summary>
+    /// Cache key for account visibility status (Public/Private).
+    /// Used to quickly determine if profile and sub-resources should be shown.
+    /// </summary>
+    public static string AccountVisibility(Guid accountId) => $"Account:Visibility:{accountId}";
+
 
     // ==========================================
     // Social

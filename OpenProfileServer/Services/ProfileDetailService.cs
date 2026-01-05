@@ -29,6 +29,29 @@ public class ProfileDetailService : IProfileDetailService
         _settingService = settingService;
     }
 
+    // ==========================================
+    // Helper: Visibility Check (Cached)
+    // ==========================================
+    
+    /// <summary>
+    /// Checks if an account's profile is publicly visible.
+    /// Returns true if Visibility is Public or if Settings don't exist (default Public).
+    /// This is cached to avoid repeated DB queries.
+    /// </summary>
+    private async Task<bool> IsProfilePublicAsync(Guid accountId)
+    {
+        var cacheKey = CacheKeys.AccountVisibility(accountId);
+        return await _cache.GetOrSetAsync(cacheKey, async _ =>
+        {
+            var settings = await _context.AccountSettings
+                .AsNoTracking()
+                .FirstOrDefaultAsync(s => s.Id == accountId);
+            
+            // If no settings exist (e.g., Application/Service accounts), default to Public
+            return settings == null || settings.Visibility == Visibility.Public;
+        });
+    }
+
     private async Task<string?> ValidateAssetAsync(AssetDto? asset, string limitKey, int defaultLimit)
     {
         int limit = await _settingService.GetIntAsync(limitKey, defaultLimit);
@@ -36,8 +59,22 @@ public class ProfileDetailService : IProfileDetailService
         return result.Valid ? null : result.Error;
     }
     
+    // ==========================================
+    // Work Experience
+    // ==========================================
+    
     public async Task<ApiResponse<IEnumerable<WorkExperienceDto>>> GetWorkAsync(Guid profileId, bool publicOnly = false)
     {
+        // Visibility Check: If public view and profile is not public, return empty list
+        if (publicOnly)
+        {
+            var isPublic = await IsProfilePublicAsync(profileId);
+            if (!isPublic)
+            {
+                return ApiResponse<IEnumerable<WorkExperienceDto>>.Success(new List<WorkExperienceDto>());
+            }
+        }
+
         var cacheKey = CacheKeys.ProfileWork(profileId);
         
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -125,8 +162,22 @@ public class ProfileDetailService : IProfileDetailService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Work experience deleted."));
     }
 
+    // ==========================================
+    // Education
+    // ==========================================
+
     public async Task<ApiResponse<IEnumerable<EducationExperienceDto>>> GetEducationAsync(Guid profileId, bool publicOnly = false)
     {
+        // Visibility Check
+        if (publicOnly)
+        {
+            var isPublic = await IsProfilePublicAsync(profileId);
+            if (!isPublic)
+            {
+                return ApiResponse<IEnumerable<EducationExperienceDto>>.Success(new List<EducationExperienceDto>());
+            }
+        }
+
         var cacheKey = CacheKeys.ProfileEducation(profileId);
         
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -214,8 +265,22 @@ public class ProfileDetailService : IProfileDetailService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Education deleted."));
     }
 
+    // ==========================================
+    // Projects
+    // ==========================================
+
     public async Task<ApiResponse<IEnumerable<ProjectDto>>> GetProjectsAsync(Guid profileId, bool publicOnly = false)
     {
+        // Visibility Check
+        if (publicOnly)
+        {
+            var isPublic = await IsProfilePublicAsync(profileId);
+            if (!isPublic)
+            {
+                return ApiResponse<IEnumerable<ProjectDto>>.Success(new List<ProjectDto>());
+            }
+        }
+
         var cacheKey = CacheKeys.ProfileProjects(profileId);
         
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -308,8 +373,15 @@ public class ProfileDetailService : IProfileDetailService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Project deleted."));
     }
 
+    // ==========================================
+    // Social Links
+    // ==========================================
+
     public async Task<ApiResponse<IEnumerable<SocialLinkDto>>> GetSocialsAsync(Guid profileId)
     {
+        // Note: Social links don't have individual visibility, but profile-level check still applies
+        // This will be checked in the public API endpoint via IsProfilePublicAsync
+        
         var cacheKey = CacheKeys.ProfileSocials(profileId);
         
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -387,8 +459,22 @@ public class ProfileDetailService : IProfileDetailService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Social link deleted."));
     }
     
+    // ==========================================
+    // Contact Methods
+    // ==========================================
+    
     public async Task<ApiResponse<IEnumerable<ContactMethodDto>>> GetContactsAsync(Guid profileId, bool publicOnly = false)
     {
+        // Visibility Check
+        if (publicOnly)
+        {
+            var isPublic = await IsProfilePublicAsync(profileId);
+            if (!isPublic)
+            {
+                return ApiResponse<IEnumerable<ContactMethodDto>>.Success(new List<ContactMethodDto>());
+            }
+        }
+
         var cacheKey = CacheKeys.ProfileContacts(profileId);
         
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -475,9 +561,15 @@ public class ProfileDetailService : IProfileDetailService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Contact method removed."));
     }
 
+    // ==========================================
+    // Memberships & Members
+    // ==========================================
     
     public async Task<ApiResponse<IEnumerable<PublicOrganizationMembershipDto>>> GetPublicMembershipsAsync(Guid profileId)
     {
+        // Note: This shows orgs the user belongs to. Profile visibility doesn't hide this.
+        // However, we still filter by Active status and Public visibility of memberships.
+        
         var cacheKey = CacheKeys.ProfileMemberships(profileId);
 
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -513,6 +605,13 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> GetPublicOrgMembersAsync(Guid orgId)
     {
+        // Note: Org member list should respect org's visibility setting
+        var isPublic = await IsProfilePublicAsync(orgId);
+        if (!isPublic)
+        {
+            return ApiResponse<IEnumerable<OrganizationMemberDto>>.Success(new List<OrganizationMemberDto>());
+        }
+
         var cacheKey = CacheKeys.OrganizationMembers(orgId);
 
         var members = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -550,6 +649,16 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<IEnumerable<CertificateDto>>> GetCertificatesAsync(Guid profileId, bool publicOnly = false)
     {
+        // Visibility Check
+        if (publicOnly)
+        {
+            var isPublic = await IsProfilePublicAsync(profileId);
+            if (!isPublic)
+            {
+                return ApiResponse<IEnumerable<CertificateDto>>.Success(new List<CertificateDto>());
+            }
+        }
+
         var cacheKey = CacheKeys.ProfileCertificates(profileId);
         
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -641,6 +750,16 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<IEnumerable<SponsorshipItemDto>>> GetSponsorshipsAsync(Guid profileId, bool publicOnly = false)
     {
+        // Visibility Check
+        if (publicOnly)
+        {
+            var isPublic = await IsProfilePublicAsync(profileId);
+            if (!isPublic)
+            {
+                return ApiResponse<IEnumerable<SponsorshipItemDto>>.Success(new List<SponsorshipItemDto>());
+            }
+        }
+
         var cacheKey = CacheKeys.ProfileSponsorships(profileId);
         
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
@@ -746,6 +865,16 @@ public class ProfileDetailService : IProfileDetailService
 
     public async Task<ApiResponse<IEnumerable<GalleryItemDto>>> GetGalleryAsync(Guid profileId, bool publicOnly = false)
     {
+        // Visibility Check
+        if (publicOnly)
+        {
+            var isPublic = await IsProfilePublicAsync(profileId);
+            if (!isPublic)
+            {
+                return ApiResponse<IEnumerable<GalleryItemDto>>.Success(new List<GalleryItemDto>());
+            }
+        }
+
         var cacheKey = CacheKeys.ProfileGallery(profileId);
         
         var list = await _cache.GetOrSetAsync(cacheKey, async _ =>
