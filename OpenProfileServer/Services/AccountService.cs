@@ -132,6 +132,8 @@ public class AccountService : IAccountService
         var settings = await _context.PersonalSettings.FirstOrDefaultAsync(s => s.Id == accountId);
         if (settings == null) return ApiResponse<MessageResponse>.Failure("Settings not found.");
 
+        var originVisibility = settings.Visibility;
+        
         // Full update: Use default values if null
         settings.AllowFollowers = dto.AllowFollowers ?? true;
         settings.ShowFollowingList = dto.ShowFollowingList ?? true;
@@ -143,6 +145,12 @@ public class AccountService : IAccountService
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.AccountSettings(accountId));
 
+        if (originVisibility != settings.Visibility)
+        {
+            await  _cache.RemoveAsync(CacheKeys.AccountProfile(accountId));
+            await  _cache.RemoveAsync(CacheKeys.AccountVisibility(accountId));
+        }
+
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated successfully."));
     }
 
@@ -152,6 +160,8 @@ public class AccountService : IAccountService
         var settings = await _context.PersonalSettings.FirstOrDefaultAsync(s => s.Id == accountId);
         if (settings == null) return ApiResponse<MessageResponse>.Failure("Settings not found.");
 
+        var originVisibility = settings.Visibility;
+        
         if (dto.AllowFollowers.HasValue) settings.AllowFollowers = dto.AllowFollowers.Value;
         if (dto.ShowFollowingList.HasValue) settings.ShowFollowingList = dto.ShowFollowingList.Value;
         if (dto.ShowFollowersList.HasValue) settings.ShowFollowersList = dto.ShowFollowersList.Value;
@@ -162,6 +172,12 @@ public class AccountService : IAccountService
 
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.AccountSettings(accountId));
+        
+        if (originVisibility != settings.Visibility)
+        {
+            await  _cache.RemoveAsync(CacheKeys.AccountProfile(accountId));
+            await  _cache.RemoveAsync(CacheKeys.AccountVisibility(accountId));
+        }
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Settings updated successfully."));
     }
