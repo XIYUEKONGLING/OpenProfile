@@ -370,6 +370,8 @@ public class AdminService : IAdminService
 
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.UserMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.OrganizationMembers(orgId));
         
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member added successfully (Admin Override)."));
     }
@@ -386,6 +388,7 @@ public class AdminService : IAdminService
 
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.ProfileMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.OrganizationMembers(orgId));
         
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member updated successfully (Admin Override)."));
     }
@@ -404,6 +407,8 @@ public class AdminService : IAdminService
         _context.OrganizationMembers.Remove(member);
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.UserMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.OrganizationMembers(orgId));
         
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member kicked successfully (Admin Override)."));
     }
