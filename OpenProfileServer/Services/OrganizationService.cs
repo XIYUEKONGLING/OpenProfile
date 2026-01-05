@@ -151,6 +151,8 @@ public class OrganizationService : IOrganizationService
             await transaction.CommitAsync();
 
             await _cache.RemoveAsync(CacheKeys.UserMemberships(ownerId));
+            await _cache.RemoveAsync(CacheKeys.ProfileMemberships(ownerId));
+            await _cache.RemoveAsync(CacheKeys.OrganizationMembers(orgId));
 
             return ApiResponse<Guid>.Success(orgId, "Organization created.");
         }
@@ -488,7 +490,9 @@ public class OrganizationService : IOrganizationService
         if (dto.Visibility.HasValue) member.Visibility = dto.Visibility.Value;
 
         await _context.SaveChangesAsync();
+        await _cache.RemoveAsync(CacheKeys.UserMemberships(userId));
         await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId));
+        await _cache.RemoveAsync(CacheKeys.OrganizationMembers(orgId));
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member details updated."));
     }
 
@@ -510,6 +514,8 @@ public class OrganizationService : IOrganizationService
         _context.OrganizationMembers.Remove(target);
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.UserMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.ProfileMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.OrganizationMembers(orgId));
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member removed."));
     }
 
@@ -530,6 +536,7 @@ public class OrganizationService : IOrganizationService
 
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.ProfileMemberships(targetUserId));
+        await _cache.RemoveAsync(CacheKeys.OrganizationMembers(orgId));
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Member updated."));
     }
 
@@ -695,6 +702,8 @@ public class OrganizationService : IOrganizationService
             
             await _notificationService.CreateNotificationAsync(invitation.InviterId, "Invitation Accepted", $"User accepted your invitation to join {invitation.Organization.DisplayName}.", NotificationType.Interaction);
             await _cache.RemoveAsync(CacheKeys.UserMemberships(userId));
+            await _cache.RemoveAsync(CacheKeys.ProfileMemberships(userId));
+            await _cache.RemoveAsync(CacheKeys.OrganizationMembers(invitation.OrganizationId));
             
             return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Invitation accepted."));
         }
