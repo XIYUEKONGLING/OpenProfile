@@ -373,7 +373,7 @@ public class AccountService : IAccountService
         var account = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == accountId);
         if (account == null) return ApiResponse<MessageResponse>.Failure("Account not found.");
 
-        if (account.Status != AccountStatus.PendingDeletion && account.Status != AccountStatus.Suspended)
+        if (account.Status != AccountStatus.PendingDeletion)
         {
             return ApiResponse<MessageResponse>.Failure("Account is not in a state that requires restoration.");
         }
