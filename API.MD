@@ -243,6 +243,7 @@ Endpoints follow the pattern `/api/me/{resource}`. All **POST/PATCH** return `Me
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs/{org}/members` | List all members. | Any Member | N/A | `IEnumerable<OrganizationMemberDto>` |
 | **GET** | `/api/orgs/{org}/members/me/role` | Get my Role. | Any Member | N/A | `MemberRoleDto` |
+| **GET** | `/api/orgs/{org}/permissions` | Get my permissions. | Any Member | N/A | `OrganizationPermissionsDto` |
 | **POST** | `/api/orgs/{org}/members` | Invite/Add member. | Owner/Admin* | `InviteMemberRequestDto` | `MessageResponse` |
 | **PATCH** | `/api/orgs/{org}/members/me` | Update my info. | Any Member | `UpdateMemberRequestDto` | `MessageResponse` |
 | **DELETE** | `/api/orgs/{org}/members/me` | Leave organization. | Any Member | N/A | `MessageResponse` |

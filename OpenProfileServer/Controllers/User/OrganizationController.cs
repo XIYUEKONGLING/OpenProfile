@@ -265,6 +265,20 @@ public class OrganizationController : ControllerBase
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
 
+    /// <summary>
+    /// GET /api/orgs/{org}/permissions
+    /// Returns the current member's permissions in the organization.
+    /// </summary>
+    [HttpGet("{org}/permissions")]
+    public async Task<ActionResult<ApiResponse<OrganizationPermissionsDto>>> GetMyPermissions(string org)
+    {
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetMyPermissionsAsync(GetUserId(), orgId.Value);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
     [HttpPatch("{org}/members/me")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateMyMemberDetails(string org, [FromBody] UpdateMemberRequestDto dto)
     {

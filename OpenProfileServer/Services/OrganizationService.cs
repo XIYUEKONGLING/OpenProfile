@@ -496,6 +496,21 @@ public class OrganizationService : IOrganizationService
         });
     }
 
+    public async Task<ApiResponse<OrganizationPermissionsDto>> GetMyPermissionsAsync(Guid userId, Guid orgId)
+    {
+        var (member, settings) = await GetMemberAndSettingsAsync(userId, orgId);
+        if (member == null) return ApiResponse<OrganizationPermissionsDto>.Failure("Not a member.");
+
+        bool canInvite = member.Role == MemberRole.Owner || member.Role == MemberRole.Admin ||
+                         (member.Role == MemberRole.Member && settings != null && settings.AllowMemberInvite);
+
+        return ApiResponse<OrganizationPermissionsDto>.Success(new OrganizationPermissionsDto
+        {
+            CanInvite = canInvite,
+            Role = member.Role
+        });
+    }
+
     public async Task<ApiResponse<MessageResponse>> UpdateMyMemberDetailsAsync(Guid userId, Guid orgId, UpdateMemberRequestDto dto)
     {
         var member = await _context.OrganizationMembers.FirstOrDefaultAsync(m => m.OrganizationId == orgId && m.AccountId == userId);

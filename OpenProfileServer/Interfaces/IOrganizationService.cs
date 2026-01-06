@@ -38,6 +38,7 @@ public interface IOrganizationService
     // === Members (Self & Management by Owner) ===
     Task<ApiResponse<IEnumerable<OrganizationMemberDto>>> GetMembersAsync(Guid userId, Guid orgId);
     Task<ApiResponse<MemberRoleDto>> GetMyRoleAsync(Guid userId, Guid orgId);
+    Task<ApiResponse<OrganizationPermissionsDto>> GetMyPermissionsAsync(Guid userId, Guid orgId);
     Task<ApiResponse<MessageResponse>> UpdateMyMemberDetailsAsync(Guid userId, Guid orgId, UpdateMemberRequestDto dto);
     
     Task<ApiResponse<MessageResponse>> RemoveMemberAsync(Guid requesterId, Guid orgId, Guid targetUserId);
