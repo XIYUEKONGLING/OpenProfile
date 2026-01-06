@@ -55,7 +55,7 @@ public class VerificationService : IVerificationService
         await _context.SaveChangesAsync();
 
         // 3. Send Email
-        return await _emailService.SendVerificationEmailAsync(email, username ?? "User", code);
+        return await _emailService.SendVerificationEmailAsync(email, username ?? "User", code, type);
     }
 
     public async Task<bool> ValidateCodeAsync(string email, VerificationType type, string code)

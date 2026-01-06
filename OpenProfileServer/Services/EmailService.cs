@@ -6,6 +6,7 @@ using MimeKit;
 using OpenProfileServer.Configuration;
 using OpenProfileServer.Constants;
 using OpenProfileServer.Interfaces;
+using OpenProfileServer.Models.Enums;
 
 namespace OpenProfileServer.Services;
 
@@ -54,11 +55,44 @@ public class EmailService : IEmailService
 
     public async Task<bool> SendVerificationEmailAsync(string toEmail, string username, string code)
     {
-        var subjectTemplate = await _settingService.GetValueAsync(SystemSettingKeys.EmailVerificationSubject) 
+        var subjectTemplate = await _settingService.GetValueAsync(SystemSettingKeys.EmailVerificationSubject)
                               ?? "Verify your email - OpenProfile";
-        
-        var bodyTemplate = await _settingService.GetValueAsync(SystemSettingKeys.EmailVerificationBody) 
+
+        var bodyTemplate = await _settingService.GetValueAsync(SystemSettingKeys.EmailVerificationBody)
                            ?? "Hello {Username}, your verification code is: {Code}";
+
+        var subject = subjectTemplate
+            .Replace("{Username}", username)
+            .Replace("{Code}", code);
+
+        var body = bodyTemplate
+            .Replace("{Username}", username)
+            .Replace("{Code}", code);
+
+        return await SendEmailAsync(toEmail, subject, body);
+    }
+
+    public async Task<bool> SendVerificationEmailAsync(string toEmail, string username, string code, VerificationType type)
+    {
+        string subjectTemplate;
+        string bodyTemplate;
+
+        if (type == VerificationType.ResetPassword)
+        {
+            subjectTemplate = await _settingService.GetValueAsync(SystemSettingKeys.EmailPasswordResetSubject)
+                              ?? "Reset your password - OpenProfile";
+
+            bodyTemplate = await _settingService.GetValueAsync(SystemSettingKeys.EmailPasswordResetBody)
+                           ?? "Hello {Username}, your password reset code is: {Code}";
+        }
+        else
+        {
+            subjectTemplate = await _settingService.GetValueAsync(SystemSettingKeys.EmailVerificationSubject)
+                              ?? "Verify your email - OpenProfile";
+
+            bodyTemplate = await _settingService.GetValueAsync(SystemSettingKeys.EmailVerificationBody)
+                           ?? "Hello {Username}, your verification code is: {Code}";
+        }
 
         var subject = subjectTemplate
             .Replace("{Username}", username)

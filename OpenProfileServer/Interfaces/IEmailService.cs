@@ -1,3 +1,5 @@
+using OpenProfileServer.Models.Enums;
+
 namespace OpenProfileServer.Interfaces;
 
 public interface IEmailService
@@ -17,6 +19,11 @@ public interface IEmailService
     /// Sends a verification email. Returns true if successful.
     /// </summary>
     Task<bool> SendVerificationEmailAsync(string toEmail, string username, string code);
+
+    /// <summary>
+    /// Sends a verification email with the specified type. Returns true if successful.
+    /// </summary>
+    Task<bool> SendVerificationEmailAsync(string toEmail, string username, string code, VerificationType type);
 
     /// <summary>
     /// Sends a generic email. Returns true if successful.
