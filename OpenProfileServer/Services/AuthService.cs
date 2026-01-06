@@ -234,14 +234,52 @@ public class AuthService : IAuthService
             .Include(a => a.Credential)
             .Include(a => a.RefreshTokens)
             .FirstOrDefaultAsync(a => a.Id == accountId);
-            
+
          if (account == null) return ApiResponse<MessageResponse>.Failure("Not found.");
-         
+
          _context.RefreshTokens.RemoveRange(account.RefreshTokens);
          if (account.Credential != null) { account.Credential.SecurityStamp = Guid.NewGuid().ToString("N"); }
-         
+
          await _context.SaveChangesAsync();
          return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Logged out everywhere."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> ResetPasswordAsync(ResetPasswordRequestDto dto)
+    {
+        // 1. Find account by email
+        var account = await _context.Accounts
+            .Include(a => a.Credential)
+            .Include(a => a.RefreshTokens)
+            .FirstOrDefaultAsync(a => a.Emails.Any(e => e.Email.ToLower() == dto.Email.ToLower()));
+
+        if (account == null)
+            return ApiResponse<MessageResponse>.Failure("If an account with this email exists, a password reset code has been sent.");
+
+        // 2. Validate account type
+        if (account.Type != AccountType.Personal && account.Type != AccountType.System)
+            return ApiResponse<MessageResponse>.Failure("Password reset is not supported for this account type.");
+
+        // 3. Validate verification code
+        var isValid = await _verificationService.ValidateCodeAsync(dto.Email, VerificationType.ResetPassword, dto.Code);
+        if (!isValid)
+            return ApiResponse<MessageResponse>.Failure("Invalid or expired verification code.");
+
+        // 4. Update password
+        if (account.Credential == null)
+            return ApiResponse<MessageResponse>.Failure("Account credentials not found.");
+
+        var (hash, salt) = CryptographyProvider.CreateHash(dto.NewPassword);
+        account.Credential.PasswordHash = hash;
+        account.Credential.PasswordSalt = salt;
+        account.Credential.UpdatedAt = DateTime.UtcNow;
+        account.Credential.SecurityStamp = Guid.NewGuid().ToString("N");
+
+        // 5. Revoke all sessions
+        _context.RefreshTokens.RemoveRange(account.RefreshTokens);
+
+        await _context.SaveChangesAsync();
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Password reset successfully. All sessions have been revoked."));
     }
 
     private async Task<TokenResponseDto> GenerateTokenResponseInternalAsync(Account account, string? deviceInfo)

@@ -9,6 +9,7 @@ public interface IAuthService
     
     // [UPDATED] Merged send logic for Register/Reset/Verify
     Task<ApiResponse<MessageResponse>> SendCodeAsync(SendCodeRequestDto dto);
+    Task<ApiResponse<MessageResponse>> ResetPasswordAsync(ResetPasswordRequestDto dto);
 
     // [UPDATED] Register now assumes code is validated internally if required
     Task<ApiResponse<TokenResponseDto>> RegisterAsync(RegisterRequestDto dto);

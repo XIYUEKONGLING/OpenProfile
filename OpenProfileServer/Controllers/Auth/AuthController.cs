@@ -6,6 +6,7 @@ using OpenProfileServer.Constants;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Auth;
 using OpenProfileServer.Models.DTOs.Common;
+using OpenProfileServer.Models.Enums;
 
 namespace OpenProfileServer.Controllers.Auth;
 
@@ -123,7 +124,7 @@ public class AuthController : ControllerBase
     {
         // Get the current User ID from the authenticated JWT claims
         var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
-        
+
         if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
         {
             return Unauthorized(ApiResponse<MessageResponse>.Failure("Invalid authentication context."));
@@ -131,5 +132,34 @@ public class AuthController : ControllerBase
 
         var result = await _authService.LogoutAllDevicesAsync(userId);
         return Ok(result);
+    }
+
+    /// <summary>
+    /// POST /api/auth/forgot-password
+    /// Initiates password reset by sending a verification code to the email.
+    /// </summary>
+    [HttpPost("forgot-password")]
+    [EnableRateLimiting(RateLimitPolicies.Email)]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> ForgotPassword([FromBody] ForgotPasswordRequestDto dto)
+    {
+        var sendCodeDto = new SendCodeRequestDto
+        {
+            Email = dto.Email,
+            Type = VerificationType.ResetPassword
+        };
+        var result = await _authService.SendCodeAsync(sendCodeDto);
+        return result.Status ? Ok(result) : BadRequest(result);
+    }
+
+    /// <summary>
+    /// POST /api/auth/reset-password
+    /// Resets password using the verification code sent to the email.
+    /// </summary>
+    [HttpPost("reset-password")]
+    [EnableRateLimiting(RateLimitPolicies.General)]
+    public async Task<ActionResult<ApiResponse<MessageResponse>>> ResetPassword([FromBody] ResetPasswordRequestDto dto)
+    {
+        var result = await _authService.ResetPasswordAsync(dto);
+        return result.Status ? Ok(result) : BadRequest(result);
     }
 }
