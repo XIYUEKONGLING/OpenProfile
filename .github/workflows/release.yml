@@ -201,7 +201,6 @@ jobs:
             $SINGLE_FILE_ARGS
 
           mkdir -p ./artifacts
-          # 使用 -C 参数简化 tar 命令，避免 pushd/popd 错误
           tar -czf "./artifacts/$ARCHIVE_NAME" -C "$OUTPUT_DIR" .
 
           echo "Created archive: $ARCHIVE_NAME"
