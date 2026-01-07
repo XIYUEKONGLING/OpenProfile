@@ -468,8 +468,6 @@ public class AdminService : IAdminService
             .Select(t => new { t.ExpiresAt })
             .ToListAsync();
 
-        var orgCount = await _context.OrganizationProfiles.CountAsync();
-        var personalCount = await _context.PersonalProfiles.CountAsync();
         var notifyCount = await _context.Notifications.CountAsync();
 
         // Asset Library Statistics
@@ -494,8 +492,8 @@ public class AdminService : IAdminService
             ActiveRefreshTokenCount = tokenStats.Count(t => t.ExpiresAt > now),
             ExpiredRefreshTokenCount = tokenStats.Count(t => t.ExpiresAt <= now),
 
-            TotalOrganizationCount = orgCount,
-            TotalPersonalProfileCount = personalCount,
+            TotalOrganizationCount = accountStats.Count(a => a.Type == AccountType.Organization),
+            TotalPersonalProfileCount = accountStats.Count(a => a.Type == AccountType.Personal),
             TotalNotificationCount = notifyCount,
 
             TotalAccountAssetCount = accountAssetTotalCount,
