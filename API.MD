@@ -124,6 +124,15 @@ Specific endpoints for sub-resources (also used by Static Generator).
 | `/api/profiles/{profile}/certificates` | `IEnumerable<CertificateDto>` | `.../certificates.json` |
 | `/api/profiles/{profile}/sponsorships` | `IEnumerable<SponsorshipItemDto>` | `.../sponsorships.json` |
 
+### 5.2 Public Asset Library
+
+Public asset library for static generator and public access. Returns 404 if asset is private, deleted, or belongs to suspended/banned account.
+
+| Method | Endpoint | Description | Response Data (DTO) | Static File |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/assets/{uuid}` | Get public asset by UUID. | `AccountAssetDto` | `api/assets/{uuid}.json` |
+| **GET** | `/api/assets/{uuid}.json` | Alias for static generator compatibility. | `AccountAssetDto` | `api/assets/{uuid}.json` |
+
 ---
 
 ## 6. Personal Management (Dynamic / Protected)
@@ -208,6 +217,34 @@ Endpoints follow the pattern `/api/me/{resource}`. All **POST/PATCH** return `Me
 | **POST** | `/api/me/notifications/read-all` | Mark all read. | N/A | `MessageResponse` |
 | **DELETE** | `/api/me/notifications/{id}` | Delete notification. | N/A | `MessageResponse` |
 | **DELETE** | `/api/me/notifications` | Delete all read. | N/A | `MessageResponse` |
+
+### 6.8 Asset Library (Personal Management)
+
+Manage your personal asset library. Assets can be images, icons, or other reusable resources.
+
+#### 6.8.1 Asset Management
+
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/me/assets` | List my assets (paginated). | Query: `?page=&pageSize=&category=&visibility=&search=` | `PagedResponse<AccountAssetDto>` |
+| **GET** | `/api/me/assets/{uuid}` | Get specific asset (my own). | N/A | `AccountAssetDto` |
+| **POST** | `/api/me/assets` | Create new asset. | `CreateAccountAssetRequestDto` | `AccountAssetDto` |
+| **PUT** | `/api/me/assets/{uuid}` | Full update asset. | `CreateAccountAssetRequestDto` | `AccountAssetDto` |
+| **PATCH** | `/api/me/assets/{uuid}` | Partial update asset. | `UpdateAccountAssetRequestDto` | `AccountAssetDto` |
+| **DELETE** | `/api/me/assets/{uuid}` | Delete asset. | N/A | `MessageResponse` |
+
+#### 6.8.2 Batch Operations
+
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **PATCH** | `/api/me/assets/batch/visibility` | Batch update visibility. | `BatchUpdateVisibilityRequestDto` | `MessageResponse` |
+| **DELETE** | `/api/me/assets/batch` | Batch delete assets. | `BatchDeleteRequestDto` | `MessageResponse` |
+
+#### 6.8.3 Categories
+
+| Method | Endpoint | Description | Response Data (DTO) |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/me/assets/categories` | List all my categories (distinct). | `IEnumerable<string>` |
 
 ---
 
@@ -319,3 +356,16 @@ Admins can perform operations that bypass standard checks.
 | **GET** | `/api/admin/system-settings` | List all settings. | N/A | `IEnumerable<SystemSettingDto>` |
 | **GET** | `/api/admin/system-settings/{key}` | Get specific setting. | N/A | `SystemSettingDto` |
 | **PUT** | `/api/admin/system-settings/{key}` | **Update** setting. | `UpdateSystemSettingRequestDto` | `MessageResponse` |
+
+### 8.4 System Assets (Admin Only)
+
+Manage system-wide global assets reserved for system use only (e.g., default avatars, system icons).
+
+| Method | Endpoint | Description | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/admin/assets` | List all system assets. | Query: `?page=&pageSize=&category=&visibility=` | `PagedResponse<SystemAssetDto>` |
+| **GET** | `/api/admin/assets/{uuid}` | Get specific system asset. | N/A | `SystemAssetDto` |
+| **POST** | `/api/admin/assets` | Create system asset. | `CreateSystemAssetRequestDto` | `SystemAssetDto` |
+| **PUT** | `/api/admin/assets/{uuid}` | Full update system asset. | `CreateSystemAssetRequestDto` | `SystemAssetDto` |
+| **PATCH** | `/api/admin/assets/{uuid}` | Partial update system asset. | `UpdateSystemAssetRequestDto` | `SystemAssetDto` |
+| **DELETE** | `/api/admin/assets/{uuid}` | Delete system asset. | N/A | `MessageResponse` |
