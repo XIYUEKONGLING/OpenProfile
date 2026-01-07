@@ -6,4 +6,6 @@ public enum Visibility
     Private = 1,
     Protected = 2,
     MembersOnly = 3,
+    FriendsOnly = 4,
+    Authenticated = 5,
 }
