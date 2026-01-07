@@ -103,8 +103,14 @@ public class Program
             if (env.IsDevelopment())
             {
                 // For SQLite in Dev, this creates the .db file and all tables 
-                logger.LogInformation("Ensuring database is created (Development)...");
-                await context.Database.EnsureCreatedAsync();
+                // logger.LogInformation("Ensuring database is created (Development)...");
+                // await context.Database.EnsureCreatedAsync();
+                var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+                if (pendingMigrations.Any())
+                {
+                    logger.LogInformation("Applying pending migrations...");
+                    await context.Database.MigrateAsync();
+                }
             }
             else
             {
