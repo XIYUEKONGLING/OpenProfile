@@ -110,13 +110,17 @@ public class DbSeedService
             },
             
             // Asset Limits
-            { 
-                SystemSettingKeys.MaxAssetSizeBytes, 
-                ("5242880", "number", "Maximum size for standard assets like avatars and logos (Default 5MB).") 
+            {
+                SystemSettingKeys.MaxAssetSizeBytes,
+                ("5242880", "number", "Maximum size for standard assets like avatars and logos (Default 5MB).")
             },
-            { 
-                SystemSettingKeys.MaxGalleryAssetSizeBytes, 
-                ("104857600", "number", "Maximum size for gallery items (Default 10MB).") 
+            {
+                SystemSettingKeys.MaxGalleryAssetSizeBytes,
+                ("10485760", "number", "Maximum size for gallery items (Default 10MB).")
+            },
+            {
+                SystemSettingKeys.MaxLibraryAssetSizeBytes,
+                ("10485760", "number", "Maximum size for asset library items (Default 10MB).")
             }
             
             
