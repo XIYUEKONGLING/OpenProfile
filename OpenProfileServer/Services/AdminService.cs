@@ -531,6 +531,10 @@ public class AdminService : IAdminService
         var target = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == targetUserId);
         if (admin == null || target == null) return ApiResponse<IEnumerable<AccountEmailDto>>.Failure("User not found.");
 
+        // Protection: Cannot manage Root's emails
+        if (target.Role == AccountRole.Root)
+            return ApiResponse<IEnumerable<AccountEmailDto>>.Failure("Cannot manage Root account emails.");
+
         // Permission check: Admins cannot manage other Admins' emails
         if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
             return ApiResponse<IEnumerable<AccountEmailDto>>.Failure("Administrators cannot manage each other's emails.");
@@ -557,6 +561,10 @@ public class AdminService : IAdminService
         var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
         var target = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == targetUserId);
         if (admin == null || target == null) return ApiResponse<MessageResponse>.Failure("User not found.");
+
+        // Protection: Cannot manage Root's emails
+        if (target.Role == AccountRole.Root)
+            return ApiResponse<MessageResponse>.Failure("Cannot manage Root account emails.");
 
         // Permission check: Admins cannot manage other Admins' emails
         if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
@@ -587,6 +595,10 @@ public class AdminService : IAdminService
         var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
         var target = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == targetUserId);
         if (admin == null || target == null) return ApiResponse<MessageResponse>.Failure("User not found.");
+
+        // Protection: Cannot manage Root's emails
+        if (target.Role == AccountRole.Root)
+            return ApiResponse<MessageResponse>.Failure("Cannot manage Root account emails.");
 
         // Permission check: Admins cannot manage other Admins' emails
         if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
@@ -619,6 +631,10 @@ public class AdminService : IAdminService
         var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
         var target = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == targetUserId);
         if (admin == null || target == null) return ApiResponse<MessageResponse>.Failure("User not found.");
+
+        // Protection: Cannot manage Root's emails
+        if (target.Role == AccountRole.Root)
+            return ApiResponse<MessageResponse>.Failure("Cannot manage Root account emails.");
 
         // Permission check: Admins cannot manage other Admins' emails
         if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
