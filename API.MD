@@ -128,10 +128,40 @@ Specific endpoints for sub-resources (also used by Static Generator).
 
 Public asset library for static generator and public access. Returns 404 if asset is private, deleted, or belongs to suspended/banned account.
 
+**Searches across**: User assets, Organization assets, and System assets.
+
 | Method | Endpoint | Description | Response Data (DTO) | Static File |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/assets/{uuid}` | Get public asset by UUID. | `AccountAssetDto` | `api/assets/{uuid}.json` |
-| **GET** | `/api/assets/{uuid}.json` | Alias for static generator compatibility. | `AccountAssetDto` | `api/assets/{uuid}.json` |
+| **GET** | `/api/assets/{uuid}` | Get public asset by UUID. | `PublicAssetDto` | `api/assets/{uuid}.json` |
+| **GET** | `/api/assets/{uuid}.json` | Alias for static generator compatibility. | `PublicAssetDto` | `api/assets/{uuid}.json` |
+
+### 5.3 Asset Lookup (Authenticated)
+
+Cross-library asset lookup for authenticated users. Automatically searches across user, organization, and system asset libraries without knowing which library the asset belongs to.
+
+| Method | Endpoint | Description | Auth | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/lookup/{uuid}` | Lookup asset by UUID with permission checking. | Required | `LookupAssetDto` |
+
+#### 5.3.1 Visibility Rules
+
+**Account Assets (User/Organization)**:
+| Visibility | Access Condition |
+| :--- | :--- |
+| `Public` | Any user (including unauthenticated) |
+| `Authenticated` | Any logged-in user |
+| `Protected` | Any logged-in user |
+| `Private` | Only the asset owner |
+| `FriendsOnly` | Owner or mutual followers (both follow each other) |
+| `MembersOnly` | Owner, or organization members (for org assets) |
+
+**System Assets**:
+| Visibility | Access Condition |
+| :--- | :--- |
+| `Public` | Any user (including unauthenticated) |
+| `Authenticated` / `Protected` | Any logged-in user |
+| `Private` | Only Admin/Root users |
+| `FriendsOnly` / `MembersOnly` | Not applicable (returns 404) |
 
 ---
 
