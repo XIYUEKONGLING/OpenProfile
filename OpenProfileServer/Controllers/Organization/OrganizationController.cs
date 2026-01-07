@@ -9,10 +9,9 @@ using OpenProfileServer.Models.DTOs.Profile;
 using OpenProfileServer.Models.DTOs.Profile.Details;
 using OpenProfileServer.Models.DTOs.Settings;
 using OpenProfileServer.Models.DTOs.Social;
-using OpenProfileServer.Models.Entities;
 using OpenProfileServer.Models.Enums;
 
-namespace OpenProfileServer.Controllers.User;
+namespace OpenProfileServer.Controllers.Organization;
 
 [Authorize]
 [Route("api/orgs")]
