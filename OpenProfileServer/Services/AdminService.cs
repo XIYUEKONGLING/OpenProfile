@@ -96,8 +96,9 @@ public class AdminService : IAdminService
 
     public async Task<ApiResponse<MessageResponse>> UpdateUserStatusAsync(Guid adminId, Guid targetUserId, UpdateUserStatusRequestDto dto)
     {
+        var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
         var target = await _context.Accounts.FirstOrDefaultAsync(a => a.Id == targetUserId);
-        if (target == null) return ApiResponse<MessageResponse>.Failure("User not found.");
+        if (admin == null || target == null) return ApiResponse<MessageResponse>.Failure("User not found.");
 
         // Protection: Cannot ban Root
         if (target.Role == AccountRole.Root)
@@ -106,6 +107,10 @@ public class AdminService : IAdminService
         // Protection: Cannot ban yourself
         if (target.Id == adminId)
             return ApiResponse<MessageResponse>.Failure("Cannot change your own status.");
+
+        // Permission check: Admins cannot modify status of other Admins
+        if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
+            return ApiResponse<MessageResponse>.Failure("Administrators cannot modify each other's status.");
 
         target.Status = dto.Status;
         await _context.SaveChangesAsync();
@@ -193,6 +198,10 @@ public class AdminService : IAdminService
 
     public async Task<ApiResponse<UserAdminDto>> CreateUserAsync(Guid adminId, CreateUserRequestDto dto)
     {
+        // Get the admin account performing the action
+        var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
+        if (admin == null) return ApiResponse<UserAdminDto>.Failure("Admin account not found.");
+
         // 1. Validation
         if (!AccountNameValidator.IsValid(dto.AccountName))
             return ApiResponse<UserAdminDto>.Failure("Invalid account name format.");
@@ -210,6 +219,10 @@ public class AdminService : IAdminService
         // Prevent creating Root via API
         if (dto.Role == AccountRole.Root)
             return ApiResponse<UserAdminDto>.Failure("Cannot create Root account via API.");
+
+        // Permission check: Only Root can create Admin accounts
+        if (dto.Role == AccountRole.Admin && admin.Role != AccountRole.Root)
+            return ApiResponse<UserAdminDto>.Failure("Only Root can create Administrator accounts.");
 
         if (dto.Type != AccountType.Personal && dto.Type != AccountType.Organization)
         {
@@ -512,8 +525,16 @@ public class AdminService : IAdminService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("User password has been force-reset."));
     }
 
-    public async Task<ApiResponse<IEnumerable<AccountEmailDto>>> AdminGetEmailsAsync(Guid targetUserId)
+    public async Task<ApiResponse<IEnumerable<AccountEmailDto>>> AdminGetEmailsAsync(Guid adminId, Guid targetUserId)
     {
+        var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
+        var target = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == targetUserId);
+        if (admin == null || target == null) return ApiResponse<IEnumerable<AccountEmailDto>>.Failure("User not found.");
+
+        // Permission check: Admins cannot manage other Admins' emails
+        if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
+            return ApiResponse<IEnumerable<AccountEmailDto>>.Failure("Administrators cannot manage each other's emails.");
+
         var emails = await _context.AccountEmails
             .AsNoTracking()
             .Where(e => e.AccountId == targetUserId)
@@ -531,8 +552,16 @@ public class AdminService : IAdminService
         return ApiResponse<IEnumerable<AccountEmailDto>>.Success(emails);
     }
 
-    public async Task<ApiResponse<MessageResponse>> AdminAddEmailAsync(Guid targetUserId, AddEmailRequestDto dto)
+    public async Task<ApiResponse<MessageResponse>> AdminAddEmailAsync(Guid adminId, Guid targetUserId, AddEmailRequestDto dto)
     {
+        var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
+        var target = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == targetUserId);
+        if (admin == null || target == null) return ApiResponse<MessageResponse>.Failure("User not found.");
+
+        // Permission check: Admins cannot manage other Admins' emails
+        if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
+            return ApiResponse<MessageResponse>.Failure("Administrators cannot manage each other's emails.");
+
         var emailLower = dto.Email.ToLowerInvariant();
         if (await _context.AccountEmails.AnyAsync(e => e.Email.ToLower() == emailLower))
             return ApiResponse<MessageResponse>.Failure("Email already in use.");
@@ -553,8 +582,16 @@ public class AdminService : IAdminService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email added successfully by administrator."));
     }
 
-    public async Task<ApiResponse<MessageResponse>> AdminUpdateEmailAsync(Guid targetUserId, string email, AdminUpdateEmailRequestDto dto)
+    public async Task<ApiResponse<MessageResponse>> AdminUpdateEmailAsync(Guid adminId, Guid targetUserId, string email, AdminUpdateEmailRequestDto dto)
     {
+        var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
+        var target = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == targetUserId);
+        if (admin == null || target == null) return ApiResponse<MessageResponse>.Failure("User not found.");
+
+        // Permission check: Admins cannot manage other Admins' emails
+        if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
+            return ApiResponse<MessageResponse>.Failure("Administrators cannot manage each other's emails.");
+
         var targetEmail = await _context.AccountEmails.FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.Email == email);
         if (targetEmail == null) return ApiResponse<MessageResponse>.Failure("Email not found.");
 
@@ -577,8 +614,16 @@ public class AdminService : IAdminService
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Email status updated."));
     }
 
-    public async Task<ApiResponse<MessageResponse>> AdminDeleteEmailAsync(Guid targetUserId, string email)
+    public async Task<ApiResponse<MessageResponse>> AdminDeleteEmailAsync(Guid adminId, Guid targetUserId, string email)
     {
+        var admin = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == adminId);
+        var target = await _context.Accounts.AsNoTracking().FirstOrDefaultAsync(a => a.Id == targetUserId);
+        if (admin == null || target == null) return ApiResponse<MessageResponse>.Failure("User not found.");
+
+        // Permission check: Admins cannot manage other Admins' emails
+        if (admin.Role == AccountRole.Admin && target.Role == AccountRole.Admin)
+            return ApiResponse<MessageResponse>.Failure("Administrators cannot manage each other's emails.");
+
         var targetEmail = await _context.AccountEmails.FirstOrDefaultAsync(e => e.AccountId == targetUserId && e.Email == email);
         if (targetEmail == null) return ApiResponse<MessageResponse>.Failure("Email not found.");
 

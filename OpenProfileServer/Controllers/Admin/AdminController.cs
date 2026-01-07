@@ -122,27 +122,27 @@ public class AdminController : ControllerBase
     [HttpGet("users/{user}/emails")]
     public async Task<ActionResult<ApiResponse<IEnumerable<AccountEmailDto>>>> GetUserEmails(Guid user)
     {
-        return Ok(await _adminService.AdminGetEmailsAsync(user));
+        return Ok(await _adminService.AdminGetEmailsAsync(GetAdminId(), user));
     }
 
     [HttpPost("users/{user}/emails")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> AddUserEmail(Guid user, [FromBody] AddEmailRequestDto dto)
     {
-        var result = await _adminService.AdminAddEmailAsync(user, dto);
+        var result = await _adminService.AdminAddEmailAsync(GetAdminId(), user, dto);
         return result.Status ? Ok(result) : BadRequest(result);
     }
 
     [HttpPatch("users/{user}/emails/{email}")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> UpdateUserEmail(Guid user, string email, [FromBody] AdminUpdateEmailRequestDto dto)
     {
-        var result = await _adminService.AdminUpdateEmailAsync(user, email, dto);
+        var result = await _adminService.AdminUpdateEmailAsync(GetAdminId(), user, email, dto);
         return result.Status ? Ok(result) : BadRequest(result);
     }
 
     [HttpDelete("users/{user}/emails/{email}")]
     public async Task<ActionResult<ApiResponse<MessageResponse>>> DeleteUserEmail(Guid user, string email)
     {
-        var result = await _adminService.AdminDeleteEmailAsync(user, email);
+        var result = await _adminService.AdminDeleteEmailAsync(GetAdminId(), user, email);
         return result.Status ? Ok(result) : BadRequest(result);
     }
 

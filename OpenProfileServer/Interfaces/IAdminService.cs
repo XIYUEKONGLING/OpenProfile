@@ -41,10 +41,10 @@ public interface IAdminService
     
     Task<ApiResponse<SystemStatusDto>> GetSystemStatusAsync();
     
-    Task<ApiResponse<IEnumerable<AccountEmailDto>>> AdminGetEmailsAsync(Guid targetUserId);
-    Task<ApiResponse<MessageResponse>> AdminAddEmailAsync(Guid targetUserId, AddEmailRequestDto dto);
-    Task<ApiResponse<MessageResponse>> AdminUpdateEmailAsync(Guid targetUserId, string email, AdminUpdateEmailRequestDto dto);
-    Task<ApiResponse<MessageResponse>> AdminDeleteEmailAsync(Guid targetUserId, string email);
+    Task<ApiResponse<IEnumerable<AccountEmailDto>>> AdminGetEmailsAsync(Guid adminId, Guid targetUserId);
+    Task<ApiResponse<MessageResponse>> AdminAddEmailAsync(Guid adminId, Guid targetUserId, AddEmailRequestDto dto);
+    Task<ApiResponse<MessageResponse>> AdminUpdateEmailAsync(Guid adminId, Guid targetUserId, string email, AdminUpdateEmailRequestDto dto);
+    Task<ApiResponse<MessageResponse>> AdminDeleteEmailAsync(Guid adminId, Guid targetUserId, string email);
 
     Task<ApiResponse<MessageResponse>> AdminResetPasswordAsync(Guid adminId, Guid targetUserId, string newPassword);
     
