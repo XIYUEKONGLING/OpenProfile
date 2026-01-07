@@ -73,6 +73,61 @@ public interface IAssetService
     Task<ApiResponse<IEnumerable<string>>> GetMyAssetCategoriesAsync(Guid accountId);
 
     // ==========================================
+    // Organization Asset Management
+    // ==========================================
+
+    /// <summary>
+    /// List organization assets (paginated).
+    /// </summary>
+    Task<ApiResponse<PagedResponse<AccountAssetDto>>> GetOrganizationAssetsAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        string? category,
+        Visibility? visibility,
+        string? search);
+
+    /// <summary>
+    /// Get specific organization asset.
+    /// </summary>
+    Task<ApiResponse<AccountAssetDto>> GetOrganizationAssetAsync(Guid organizationId, Guid uuid);
+
+    /// <summary>
+    /// Create new organization asset.
+    /// </summary>
+    Task<ApiResponse<AccountAssetDto>> CreateOrganizationAssetAsync(Guid organizationId, CreateAccountAssetRequestDto dto);
+
+    /// <summary>
+    /// Full update organization asset.
+    /// </summary>
+    Task<ApiResponse<AccountAssetDto>> UpdateOrganizationAssetAsync(Guid organizationId, Guid uuid, CreateAccountAssetRequestDto dto);
+
+    /// <summary>
+    /// Partial update organization asset.
+    /// </summary>
+    Task<ApiResponse<AccountAssetDto>> PatchOrganizationAssetAsync(Guid organizationId, Guid uuid, UpdateAccountAssetRequestDto dto);
+
+    /// <summary>
+    /// Delete organization asset.
+    /// </summary>
+    Task<ApiResponse<MessageResponse>> DeleteOrganizationAssetAsync(Guid organizationId, Guid uuid);
+
+    /// <summary>
+    /// Batch update organization asset visibility.
+    /// </summary>
+    Task<ApiResponse<MessageResponse>> BatchUpdateOrganizationAssetVisibilityAsync(Guid organizationId, BatchUpdateVisibilityRequestDto dto);
+
+    /// <summary>
+    /// Batch delete organization assets.
+    /// </summary>
+    Task<ApiResponse<MessageResponse>> BatchDeleteOrganizationAssetsAsync(Guid organizationId, BatchDeleteRequestDto dto);
+
+    /// <summary>
+    /// List all organization categories (distinct).
+    /// </summary>
+    Task<ApiResponse<IEnumerable<string>>> GetOrganizationAssetCategoriesAsync(Guid organizationId);
+
+    // ==========================================
     // System Asset Management (Admin Only)
     // ==========================================
 

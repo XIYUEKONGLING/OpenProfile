@@ -338,6 +338,235 @@ public class AssetService : IAssetService
     }
 
     // ==========================================
+    // Organization Asset Management
+    // ==========================================
+
+    public async Task<ApiResponse<PagedResponse<AccountAssetDto>>> GetOrganizationAssetsAsync(
+        Guid organizationId,
+        int page,
+        int pageSize,
+        string? category,
+        Visibility? visibility,
+        string? search)
+    {
+        var query = _context.AccountAssets
+            .AsNoTracking()
+            .Where(a => a.AccountId == organizationId);
+
+        if (!string.IsNullOrEmpty(category))
+            query = query.Where(a => a.Category == category);
+
+        if (visibility.HasValue)
+            query = query.Where(a => a.Visibility == visibility.Value);
+
+        if (!string.IsNullOrEmpty(search))
+            query = query.Where(a => (a.Category != null && a.Category.Contains(search)) ||
+                                    (a.Notes != null && a.Notes.Contains(search)) ||
+                                    (a.Asset.Tag != null && a.Asset.Tag.Contains(search)));
+
+        var totalCount = await query.CountAsync();
+
+        var assets = await query
+            .OrderByDescending(a => a.CreatedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
+            .Select(a => MapAccountAssetDto(a))
+            .ToListAsync();
+
+        return ApiResponse<PagedResponse<AccountAssetDto>>.Success(new PagedResponse<AccountAssetDto>(
+            assets,
+            page,
+            pageSize,
+            totalCount
+        ));
+    }
+
+    public async Task<ApiResponse<AccountAssetDto>> GetOrganizationAssetAsync(Guid organizationId, Guid uuid)
+    {
+        var asset = await _context.AccountAssets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == uuid && a.AccountId == organizationId);
+
+        if (asset == null)
+            return ApiResponse<AccountAssetDto>.Failure("Asset not found.");
+
+        return ApiResponse<AccountAssetDto>.Success(MapAccountAssetDto(asset));
+    }
+
+    public async Task<ApiResponse<AccountAssetDto>> CreateOrganizationAssetAsync(Guid organizationId, CreateAccountAssetRequestDto dto)
+    {
+        var validationError = await ValidateAssetAsync(dto.Asset);
+        if (validationError != null)
+            return ApiResponse<AccountAssetDto>.Failure(validationError);
+
+        var asset = new AccountAsset
+        {
+            AccountId = organizationId,
+            Category = dto.Category,
+            Notes = dto.Notes,
+            Asset = new Asset
+            {
+                Type = dto.Asset.Type,
+                Value = dto.Asset.Value,
+                Tag = dto.Asset.Tag
+            },
+            Visibility = dto.Visibility,
+            CreatedAt = DateTime.UtcNow,
+            UpdatedAt = DateTime.UtcNow
+        };
+
+        _context.AccountAssets.Add(asset);
+        await _context.SaveChangesAsync();
+
+        return ApiResponse<AccountAssetDto>.Success(MapAccountAssetDto(asset));
+    }
+
+    public async Task<ApiResponse<AccountAssetDto>> UpdateOrganizationAssetAsync(Guid organizationId, Guid uuid, CreateAccountAssetRequestDto dto)
+    {
+        var validationError = await ValidateAssetAsync(dto.Asset);
+        if (validationError != null)
+            return ApiResponse<AccountAssetDto>.Failure(validationError);
+
+        var asset = await _context.AccountAssets
+            .FirstOrDefaultAsync(a => a.Id == uuid && a.AccountId == organizationId);
+
+        if (asset == null)
+            return ApiResponse<AccountAssetDto>.Failure("Asset not found.");
+
+        // Full update
+        asset.Category = dto.Category;
+        asset.Notes = dto.Notes;
+        asset.Asset = new Asset
+        {
+            Type = dto.Asset.Type,
+            Value = dto.Asset.Value,
+            Tag = dto.Asset.Tag
+        };
+        asset.Visibility = dto.Visibility;
+        asset.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        await InvalidateAssetCacheAsync(uuid);
+
+        return ApiResponse<AccountAssetDto>.Success(MapAccountAssetDto(asset));
+    }
+
+    public async Task<ApiResponse<AccountAssetDto>> PatchOrganizationAssetAsync(Guid organizationId, Guid uuid, UpdateAccountAssetRequestDto dto)
+    {
+        var asset = await _context.AccountAssets
+            .FirstOrDefaultAsync(a => a.Id == uuid && a.AccountId == organizationId);
+
+        if (asset == null)
+            return ApiResponse<AccountAssetDto>.Failure("Asset not found.");
+
+        // Partial update
+        if (dto.Category != null)
+            asset.Category = dto.Category;
+
+        if (dto.Notes != null)
+            asset.Notes = dto.Notes;
+
+        if (dto.Asset != null)
+        {
+            var validationError = await ValidateAssetAsync(dto.Asset);
+            if (validationError != null)
+                return ApiResponse<AccountAssetDto>.Failure(validationError);
+
+            asset.Asset = new Asset
+            {
+                Type = dto.Asset.Type,
+                Value = dto.Asset.Value,
+                Tag = dto.Asset.Tag
+            };
+        }
+
+        if (dto.Visibility.HasValue)
+            asset.Visibility = dto.Visibility.Value;
+
+        asset.UpdatedAt = DateTime.UtcNow;
+
+        await _context.SaveChangesAsync();
+        await InvalidateAssetCacheAsync(uuid);
+
+        return ApiResponse<AccountAssetDto>.Success(MapAccountAssetDto(asset));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> DeleteOrganizationAssetAsync(Guid organizationId, Guid uuid)
+    {
+        var asset = await _context.AccountAssets
+            .FirstOrDefaultAsync(a => a.Id == uuid && a.AccountId == organizationId);
+
+        if (asset == null)
+            return ApiResponse<MessageResponse>.Failure("Asset not found.");
+
+        _context.AccountAssets.Remove(asset);
+        await _context.SaveChangesAsync();
+        await InvalidateAssetCacheAsync(uuid);
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Asset deleted successfully."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> BatchUpdateOrganizationAssetVisibilityAsync(Guid organizationId, BatchUpdateVisibilityRequestDto dto)
+    {
+        if (dto.AssetIds == null || dto.AssetIds.Count == 0)
+            return ApiResponse<MessageResponse>.Failure("No assets specified.");
+
+        var assets = await _context.AccountAssets
+            .Where(a => a.AccountId == organizationId && dto.AssetIds.Contains(a.Id))
+            .ToListAsync();
+
+        foreach (var asset in assets)
+        {
+            asset.Visibility = dto.Visibility;
+            asset.UpdatedAt = DateTime.UtcNow;
+        }
+
+        await _context.SaveChangesAsync();
+
+        // Invalidate cache for all affected assets
+        foreach (var assetId in dto.AssetIds)
+        {
+            await InvalidateAssetCacheAsync(assetId);
+        }
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create($"Updated {assets.Count} asset(s)."));
+    }
+
+    public async Task<ApiResponse<MessageResponse>> BatchDeleteOrganizationAssetsAsync(Guid organizationId, BatchDeleteRequestDto dto)
+    {
+        if (dto.AssetIds == null || dto.AssetIds.Count == 0)
+            return ApiResponse<MessageResponse>.Failure("No assets specified.");
+
+        var assets = await _context.AccountAssets
+            .Where(a => a.AccountId == organizationId && dto.AssetIds.Contains(a.Id))
+            .ToListAsync();
+
+        _context.AccountAssets.RemoveRange(assets);
+        await _context.SaveChangesAsync();
+
+        // Invalidate cache for all affected assets
+        foreach (var assetId in dto.AssetIds)
+        {
+            await InvalidateAssetCacheAsync(assetId);
+        }
+
+        return ApiResponse<MessageResponse>.Success(MessageResponse.Create($"Deleted {assets.Count} asset(s)."));
+    }
+
+    public async Task<ApiResponse<IEnumerable<string>>> GetOrganizationAssetCategoriesAsync(Guid organizationId)
+    {
+        var categories = await _context.AccountAssets
+            .AsNoTracking()
+            .Where(a => a.AccountId == organizationId && a.Category != null)
+            .Select(a => a.Category!)
+            .Distinct()
+            .OrderBy(c => c)
+            .ToListAsync();
+
+        return ApiResponse<IEnumerable<string>>.Success(categories);
+    }
+
+    // ==========================================
     // System Asset Management (Admin Only)
     // ==========================================
 
