@@ -4,10 +4,14 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag (e.g. RELEASE.1.0.0.0)"
+        description: "Release tag (e.g. v1.0.0)"
         required: true
       title:
-        description: "Release title (e.g. Release v1.0.0.0)"
+        description: "Release title (e.g. Release v1.0.0)"
+        required: false
+        default: ""
+      previous_tag:
+        description: "Previous tag for changelog comparison (leave empty to auto-detect)"
         required: false
         default: ""
       pre_release:
@@ -25,20 +29,22 @@ permissions:
   contents: write
 
 env:
-  DOTNET_VERSION: "10.0.x"
+  # Using .NET 8.0 (LTS) or 9.0. Ensure this matches your project target.
+  DOTNET_VERSION: "8.0.x"
 
 jobs:
   prepare-release:
     name: Prepare Release
     runs-on: ubuntu-latest
     outputs:
-      tag: ${{ steps.get-tag.outputs.tag }}
-      title: ${{ steps.get-title.outputs.title }}
-      is_pre_release: ${{ steps.check-pre-release.outputs.is_pre_release }}
-      is_draft: ${{ steps.check-draft.outputs.is_draft }}
-      commit_sha: ${{ steps.get-commit.outputs.commit_sha }}
-      contributors: ${{ steps.get-contributors.outputs.contributors }}
-      whats_changed: ${{ steps.whats-changed.outputs.changes }}
+      tag: ${{ steps.config.outputs.tag }}
+      title: ${{ steps.config.outputs.title }}
+      previous_tag: ${{ steps.changelog.outputs.previous_tag }}
+      is_pre_release: ${{ steps.config.outputs.is_pre_release }}
+      is_draft: ${{ steps.config.outputs.is_draft }}
+      commit_sha: ${{ steps.config.outputs.commit_sha }}
+      contributors: ${{ steps.changelog.outputs.contributors }}
+      whats_changed: ${{ steps.changelog.outputs.changes }}
 
     steps:
       - name: Check out Git repository
@@ -46,69 +52,80 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Get release tag
-        id: get-tag
+      - name: Configure Release Parameters
+        id: config
         shell: bash
         run: |
+          # 1. Determine Tag
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            echo "tag=${{ github.event.inputs.tag }}" >> $GITHUB_OUTPUT
+            TAG="${{ github.event.inputs.tag }}"
           else
-            echo "tag=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            TAG="${GITHUB_REF#refs/tags/}"
           fi
+          echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-      - name: Get release title
-        id: get-title
-        shell: bash
-        run: |
+          # 2. Determine Title
           if [ -n "${{ github.event.inputs.title }}" ]; then
             echo "title=${{ github.event.inputs.title }}" >> $GITHUB_OUTPUT
           else
-            echo "title=Release ${{ steps.get-tag.outputs.tag }}" >> $GITHUB_OUTPUT
+            echo "title=Release $TAG" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check if pre-release
-        id: check-pre-release
-        shell: bash
-        run: |
+          # 3. Determine Pre-release status
           if [ "${{ github.event.inputs.pre_release }}" = "true" ]; then
             echo "is_pre_release=true" >> $GITHUB_OUTPUT
+          elif [[ "$TAG" =~ -(alpha|beta|rc|pre|preview) ]]; then
+            echo "is_pre_release=true" >> $GITHUB_OUTPUT
           else
-            TAG="${{ steps.get-tag.outputs.tag }}"
-            if [[ "$TAG" =~ -(alpha|beta|rc|pre|preview) ]]; then
-              echo "is_pre_release=true" >> $GITHUB_OUTPUT
-            else
-              echo "is_pre_release=false" >> $GITHUB_OUTPUT
-            fi
+            echo "is_pre_release=false" >> $GITHUB_OUTPUT
           fi
 
-      - name: Check if draft
-        id: check-draft
-        shell: bash
-        run: |
-          if [ "${{ github.event.inputs.draft }}" = "true" ]; then
-            echo "is_draft=true" >> $GITHUB_OUTPUT
-          else
-            echo "is_draft=false" >> $GITHUB_OUTPUT
-          fi
+          # 4. Determine Draft status
+          echo "is_draft=${{ github.event.inputs.draft }}" >> $GITHUB_OUTPUT
 
-      - name: Get commit SHA
-        id: get-commit
-        shell: bash
-        run: |
+          # 5. Get Commit SHA
           echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
-      - name: Get contributors
-        id: get-contributors
+      - name: Generate Changelog
+        id: changelog
         shell: bash
         run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$LAST_TAG" ]; then
-            CONTRIBUTORS=$(git log --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commit(s))"}')
-          else
-            CONTRIBUTORS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commit(s))"}')
-          fi
+          CURRENT_TAG="${{ steps.config.outputs.tag }}"
+          INPUT_PREV="${{ github.event.inputs.previous_tag }}"
           
-          if [ -z "$CONTRIBUTORS" ]; then CONTRIBUTORS="No new contributors"; fi
+          # Try to find the previous tag automatically if not provided
+          if [ -n "$INPUT_PREV" ]; then
+            PREV_TAG="$INPUT_PREV"
+          else
+            # Get the tag before the current HEAD
+            PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          fi
+
+          echo "Current: $CURRENT_TAG, Previous: $PREV_TAG"
+          echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
+
+          # Generate Commit List
+          # Format: - Subject (@Author)
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous tag found. Listing all commits."
+            COMMITS=$(git log --pretty=format:"- %s (@%an)" --reverse)
+            CONTRIBUTORS=$(git log --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commits)"}')
+          else
+            echo "Generating changelog from $PREV_TAG to HEAD."
+            COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (@%an)" --reverse)
+            CONTRIBUTORS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commits)"}')
+          fi
+
+          # Handle empty results
+          if [ -z "$COMMITS" ]; then COMMITS="No visible changes."; fi
+          if [ -z "$CONTRIBUTORS" ]; then CONTRIBUTORS="No new contributors."; fi
+
+          # Output Multi-line strings using EOF
+          {
+            echo "changes<<EOF"
+            echo "$COMMITS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
           {
             echo "contributors<<EOF"
@@ -116,32 +133,13 @@ jobs:
             echo "EOF"
           } >> $GITHUB_OUTPUT
 
-      - name: Generate What's Changed
-        id: whats-changed
-        shell: bash
-        run: |
-          LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-          if [ -z "$LAST_TAG" ]; then
-            COMMITS=$(git log --pretty=format:"- %s" --reverse)
-          else
-            COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s" --reverse)
-          fi
-          
-          if [ -z "$COMMITS" ]; then COMMITS="No changes"; fi
-
-          # 使用 EOF 语法正确处理多行输出
-          {
-            echo "changes<<EOF"
-            echo "$COMMITS"
-            echo "EOF"
-          } >> $GITHUB_OUTPUT
-
   build:
-    name: Build ${{ matrix.project.name }} on ${{ matrix.platform.name }}
+    name: Build ${{ matrix.project.name }} (${{ matrix.platform.rid }})
     runs-on: ${{ matrix.platform.runner }}
     needs: prepare-release
-
+    
     strategy:
+      fail-fast: false
       matrix:
         platform:
           - name: linux-x64
@@ -158,18 +156,15 @@ jobs:
             rid: osx-arm64
         project:
           - name: OpenProfileServer
-            project_file: "OpenProfileServer/OpenProfileServer.csproj"
+            path: "OpenProfileServer/OpenProfileServer.csproj"
             output_name: openprofile-server
           - name: OpenProfileServer.Generator
-            project_file: "OpenProfileServer.Generator/OpenProfileServer.Generator.csproj"
+            path: "OpenProfileServer.Generator/OpenProfileServer.Generator.csproj"
             output_name: openprofile-generator
-      fail-fast: false
 
     steps:
       - name: Check out Git repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -177,40 +172,56 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: Install dependencies
-        run: dotnet restore ${{ matrix.project.project_file }}
+        run: dotnet restore "${{ matrix.project.path }}"
 
-      - name: Build ${{ matrix.project.name }} for ${{ matrix.platform.name }}
+      - name: Build and Publish
         shell: bash
         run: |
-          OUTPUT_DIR="./publish/${{ matrix.platform.name }}/${{ matrix.project.name }}"
-          ARCHIVE_NAME="${{ matrix.project.output_name }}-${{ matrix.platform.rid }}.tar.gz"
+          OUTPUT_DIR="./publish/${{ matrix.project.name }}"
+          ARCHIVE_NAME="${{ matrix.project.output_name }}-${{ matrix.platform.rid }}.zip"
 
-          SINGLE_FILE_ARGS="-p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true"
-
+          # Optimization: Removed PublishReadyToRun=true to speed up build significantly
+          # Optimization: PublishTrimmed=false prevents analysis delays and runtime errors
+          
+          EXTRA_ARGS="-p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true"
+          
           if [[ "${{ matrix.platform.rid }}" == win-* ]]; then
-            SINGLE_FILE_ARGS="$SINGLE_FILE_ARGS -p:IncludeNativeLibrariesForSelfExtract=true"
+             EXTRA_ARGS="$EXTRA_ARGS -p:IncludeNativeLibrariesForSelfExtract=true"
           fi
 
-          dotnet publish "${{ matrix.project.project_file }}" \
+          echo "Building ${{ matrix.project.name }}..."
+          
+          dotnet publish "${{ matrix.project.path }}" \
             --configuration Release \
             --runtime "${{ matrix.platform.rid }}" \
             --self-contained true \
             --output "$OUTPUT_DIR" \
             -p:PublishTrimmed=false \
-            -p:PublishReadyToRun=true \
-            $SINGLE_FILE_ARGS
+            -p:PublishReadyToRun=false \
+            $EXTRA_ARGS
 
+          # Compress Artifacts
           mkdir -p ./artifacts
-          tar -czf "./artifacts/$ARCHIVE_NAME" -C "$OUTPUT_DIR" .
 
-          echo "Created archive: $ARCHIVE_NAME"
+          echo "Compressing to $ARCHIVE_NAME..."
+          
+          if [[ "${{ matrix.platform.runner }}" == "windows-latest" ]]; then
+            # Use 7z on Windows Git Bash for speed
+            7z a -tzip "./artifacts/$ARCHIVE_NAME" "$OUTPUT_DIR/*"
+          else
+            # Use zip on Linux/Mac
+            cd "$OUTPUT_DIR"
+            zip -r "../../artifacts/$ARCHIVE_NAME" .
+          fi
+          
+          echo "Build Complete: $ARCHIVE_NAME"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.project.output_name }}-${{ matrix.platform.name }}
+          name: ${{ matrix.project.output_name }}-${{ matrix.platform.rid }}
           path: ./artifacts/*
-          retention-days: 7
+          retention-days: 1
 
   create-release:
     name: Create Release
@@ -218,15 +229,13 @@ jobs:
     needs: [prepare-release, build]
 
     steps:
-      - name: Check out Git repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
+
+      - name: Display Artifacts structure
+        run: ls -R ./artifacts
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
@@ -239,13 +248,16 @@ jobs:
           generate_release_notes: false
           body: |
             ## What's Changed
+            
             ${{ needs.prepare-release.outputs.whats_changed }}
 
             ## Contributors
+            
             ${{ needs.prepare-release.outputs.contributors }}
 
             ---
-            **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.prepare-release.outputs.tag }}
-          files: ./artifacts/*/*
+            
+            **Full Changelog**: https://github.com/${{ github.repository }}/compare/${{ needs.prepare-release.outputs.previous_tag }}...${{ needs.prepare-release.outputs.tag }}
+          files: ./artifacts/*/*.zip
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
