@@ -158,19 +158,15 @@ jobs:
           - name: linux-x64
             runner: ubuntu-latest
             rid: linux-x64
-            archive_ext: tar.gz
           - name: linux-arm64
             runner: ubuntu-latest
             rid: linux-arm64
-            archive_ext: tar.gz
           - name: win-x64
             runner: windows-latest
             rid: win-x64
-            archive_ext: zip
           - name: osx-arm64
             runner: macos-latest
             rid: osx-arm64
-            archive_ext: tar.gz
         project:
           - name: OpenProfileServer
             project_file: ${{ env.SERVER_PROJECT }}
@@ -198,13 +194,12 @@ jobs:
         shell: bash
         run: |
           OUTPUT_DIR="./publish/${{ matrix.platform.name }}/${{ matrix.project.name }}"
-          ARCHIVE_NAME="${{ matrix.project.output_name }}-${{ matrix.platform.name }}.${{ matrix.platform.archive_ext }}"
+          ARCHIVE_NAME="${{ matrix.project.output_name }}-${{ matrix.platform.rid }}.tar.gz"
 
-          # Determine publish arguments based on platform
+          SINGLE_FILE_ARGS="-p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true"
+
           if [[ "${{ matrix.platform.rid }}" == win-* ]]; then
-            PUBLISH_ARGS="-p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true"
-          else
-            PUBLISH_ARGS="--nologo"
+            SINGLE_FILE_ARGS="$SINGLE_FILE_ARGS -p:IncludeNativeLibrariesForSelfExtract=true"
           fi
 
           # Build self-contained single file
@@ -215,19 +210,11 @@ jobs:
             --output "$OUTPUT_DIR" \
             -p:PublishTrimmed=false \
             -p:PublishReadyToRun=true \
-            -p:IncludeAllContentForSelfExtract=true \
-            $PUBLISH_ARGS
+            $SINGLE_FILE_ARGS
 
-          # Create archive
           mkdir -p ./artifacts
           pushd "$OUTPUT_DIR" || exit 1
-
-          if [[ "${{ matrix.platform.archive_ext }}" == "zip" ]]; then
-            7z a -tzip "../../artifacts/$ARCHIVE_NAME" *
-          else
-            tar -czf "../../artifacts/$ARCHIVE_NAME" *
-          fi
-
+          tar -czf "../../artifacts/$ARCHIVE_NAME" *
           popd || exit 1
 
           echo "Created archive: $ARCHIVE_NAME"
@@ -249,19 +236,18 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-          ref: ${{ env.RELEASE_BRANCH }}
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: ./artifacts
 
-      - name: Create Release on release branch
+      - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ needs.prepare-release.outputs.tag }}
           name: ${{ needs.prepare-release.outputs.title }}
-          target_commitish: ${{ env.RELEASE_BRANCH }}
+          target_commitish: ${{ needs.prepare-release.outputs.commit_sha }}
           draft: ${{ needs.prepare-release.outputs.is_draft }}
           prerelease: ${{ needs.prepare-release.outputs.is_pre_release }}
           generate_release_notes: false
