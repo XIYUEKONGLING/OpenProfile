@@ -361,6 +361,7 @@ public class AccountService : IAccountService
 
         account.Status = AccountStatus.PendingDeletion;
         account.UpdatedAt = DateTime.UtcNow;
+        account.DeletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         
         await _authService.LogoutAllDevicesAsync(accountId);
@@ -391,13 +392,13 @@ public class AccountService : IAccountService
     {
         var account = await _context.Accounts
             .AsNoTracking()
-            .Select(a => new { a.Id, a.Status, a.UpdatedAt })
+            .Select(a => new { a.Id, a.Status, a.DeletedAt })
             .FirstOrDefaultAsync(a => a.Id == accountId);
 
         if (account == null)
             return ApiResponse<DeletionCountdownDto>.Failure("Account not found.");
 
-        if (account.Status != AccountStatus.PendingDeletion)
+        if (account.Status != AccountStatus.PendingDeletion || account.DeletedAt == null)
         {
             return ApiResponse<DeletionCountdownDto>.Success(new DeletionCountdownDto
             {
@@ -410,7 +411,7 @@ public class AccountService : IAccountService
         }
 
         var cooldownDays = await _settingService.GetIntAsync(SystemSettingKeys.AccountDeletionCooldownDays, 30);
-        var deletionDate = account.UpdatedAt.AddDays(cooldownDays);
+        var deletionDate = account.DeletedAt.Value.AddDays(cooldownDays);
         var remaining = deletionDate - DateTime.UtcNow;
 
         if (remaining <= TimeSpan.Zero)

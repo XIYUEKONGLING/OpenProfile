@@ -215,6 +215,7 @@ public class OrganizationService : IOrganizationService
         // Soft delete / Cooling off
         account.Status = AccountStatus.PendingDeletion;
         account.UpdatedAt = DateTime.UtcNow;
+        account.DeletedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.AccountProfile(orgId));
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Organization marked for deletion."));
@@ -249,13 +250,13 @@ public class OrganizationService : IOrganizationService
 
         var account = await _context.Accounts
             .AsNoTracking()
-            .Select(a => new { a.Id, a.Status, a.UpdatedAt })
+            .Select(a => new { a.Id, a.Status, a.DeletedAt })
             .FirstOrDefaultAsync(a => a.Id == orgId);
 
         if (account == null)
             return ApiResponse<DeletionCountdownDto>.Failure("Organization not found.");
 
-        if (account.Status != AccountStatus.PendingDeletion)
+        if (account.Status != AccountStatus.PendingDeletion || account.DeletedAt == null)
         {
             return ApiResponse<DeletionCountdownDto>.Success(new DeletionCountdownDto
             {
@@ -268,7 +269,7 @@ public class OrganizationService : IOrganizationService
         }
 
         var cooldownDays = await _settingService.GetIntAsync(SystemSettingKeys.AccountDeletionCooldownDays, 30);
-        var deletionDate = account.UpdatedAt.AddDays(cooldownDays);
+        var deletionDate = account.DeletedAt.Value.AddDays(cooldownDays);
         var remaining = deletionDate - DateTime.UtcNow;
 
         if (remaining <= TimeSpan.Zero)

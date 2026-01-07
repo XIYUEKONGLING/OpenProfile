@@ -53,7 +53,7 @@ public class AccountCleanupService : BackgroundService
     private async Task<int> ExecuteDeleteAsync(ApplicationDbContext context, DateTime cutoffDate, CancellationToken token)
     {
         var accountsToDelete = await context.Accounts
-            .Where(a => a.Status == AccountStatus.PendingDeletion && a.UpdatedAt < cutoffDate)
+            .Where(a => a.Status == AccountStatus.PendingDeletion && a.DeletedAt < cutoffDate)
             .Include(a => a.Profile)
             .Include(a => a.Settings)
             .Include(a => a.Credential)
