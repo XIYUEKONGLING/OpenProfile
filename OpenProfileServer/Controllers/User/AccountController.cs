@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using OpenProfileServer.Constants;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
@@ -157,7 +159,18 @@ public class AccountController : ControllerBase
         if (!result.Status) return BadRequest(result);
         return Ok(result);
     }
-    
+
+    /// <summary>
+    /// GET /api/me/deletion-countdown
+    /// Get deletion countdown if account is in PendingDeletion status.
+    /// </summary>
+    [HttpGet("deletion-countdown")]
+    [EnableRateLimiting(RateLimitPolicies.General)]
+    public async Task<ActionResult<ApiResponse<DeletionCountdownDto>>> GetDeletionCountdown()
+    {
+        return Ok(await _accountService.GetDeletionCountdownAsync(GetUserId()));
+    }
+
     // ==========================================
     // Email Management
     // ==========================================

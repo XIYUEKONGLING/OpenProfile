@@ -360,6 +360,7 @@ public class AccountService : IAccountService
         }
 
         account.Status = AccountStatus.PendingDeletion;
+        account.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         
         await _authService.LogoutAllDevicesAsync(accountId);
@@ -384,6 +385,54 @@ public class AccountService : IAccountService
         await _cache.RemoveAsync(CacheKeys.AccountProfile(accountId));
 
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Account restored successfully."));
+    }
+
+    public async Task<ApiResponse<DeletionCountdownDto>> GetDeletionCountdownAsync(Guid accountId)
+    {
+        var account = await _context.Accounts
+            .AsNoTracking()
+            .Select(a => new { a.Id, a.Status, a.UpdatedAt })
+            .FirstOrDefaultAsync(a => a.Id == accountId);
+
+        if (account == null)
+            return ApiResponse<DeletionCountdownDto>.Failure("Account not found.");
+
+        if (account.Status != AccountStatus.PendingDeletion)
+        {
+            return ApiResponse<DeletionCountdownDto>.Success(new DeletionCountdownDto
+            {
+                Days = 0,
+                Hours = 0,
+                Minutes = 0,
+                Seconds = 0,
+                IsInCooldown = false
+            });
+        }
+
+        var cooldownDays = await _settingService.GetIntAsync(SystemSettingKeys.AccountDeletionCooldownDays, 30);
+        var deletionDate = account.UpdatedAt.AddDays(cooldownDays);
+        var remaining = deletionDate - DateTime.UtcNow;
+
+        if (remaining <= TimeSpan.Zero)
+        {
+            return ApiResponse<DeletionCountdownDto>.Success(new DeletionCountdownDto
+            {
+                Days = 0,
+                Hours = 0,
+                Minutes = 0,
+                Seconds = 0,
+                IsInCooldown = false
+            });
+        }
+
+        return ApiResponse<DeletionCountdownDto>.Success(new DeletionCountdownDto
+        {
+            Days = remaining.Days,
+            Hours = remaining.Hours,
+            Minutes = remaining.Minutes,
+            Seconds = remaining.Seconds,
+            IsInCooldown = true
+        });
     }
 
     // ==========================================

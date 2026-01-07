@@ -325,10 +325,11 @@ public static class ServiceCollectionExtensions
         // Infrastructure
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<DbSeedService>();
-        
+
         // Hosted Services (Background Tasks)
         services.AddHostedService<VerificationCleanupService>();
         services.AddHostedService<TokenCleanupService>();
+        services.AddHostedService<AccountCleanupService>();
         
         return services;
     }

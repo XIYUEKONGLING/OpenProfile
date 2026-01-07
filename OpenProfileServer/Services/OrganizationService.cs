@@ -214,6 +214,7 @@ public class OrganizationService : IOrganizationService
 
         // Soft delete / Cooling off
         account.Status = AccountStatus.PendingDeletion;
+        account.UpdatedAt = DateTime.UtcNow;
         await _context.SaveChangesAsync();
         await _cache.RemoveAsync(CacheKeys.AccountProfile(orgId));
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Organization marked for deletion."));
@@ -235,7 +236,63 @@ public class OrganizationService : IOrganizationService
         await _cache.RemoveAsync(CacheKeys.AccountProfile(orgId));
         return ApiResponse<MessageResponse>.Success(MessageResponse.Create("Organization restored successfully."));
     }
-    
+
+    public async Task<ApiResponse<DeletionCountdownDto>> GetOrgDeletionCountdownAsync(Guid userId, Guid orgId)
+    {
+        var isMember = await _context.OrganizationMembers
+            .AnyAsync(m => m.OrganizationId == orgId && m.AccountId == userId);
+
+        if (!isMember)
+        {
+            return ApiResponse<DeletionCountdownDto>.Failure("Insufficient permissions. You are not a member of this organization.");
+        }
+
+        var account = await _context.Accounts
+            .AsNoTracking()
+            .Select(a => new { a.Id, a.Status, a.UpdatedAt })
+            .FirstOrDefaultAsync(a => a.Id == orgId);
+
+        if (account == null)
+            return ApiResponse<DeletionCountdownDto>.Failure("Organization not found.");
+
+        if (account.Status != AccountStatus.PendingDeletion)
+        {
+            return ApiResponse<DeletionCountdownDto>.Success(new DeletionCountdownDto
+            {
+                Days = 0,
+                Hours = 0,
+                Minutes = 0,
+                Seconds = 0,
+                IsInCooldown = false
+            });
+        }
+
+        var cooldownDays = await _settingService.GetIntAsync(SystemSettingKeys.AccountDeletionCooldownDays, 30);
+        var deletionDate = account.UpdatedAt.AddDays(cooldownDays);
+        var remaining = deletionDate - DateTime.UtcNow;
+
+        if (remaining <= TimeSpan.Zero)
+        {
+            return ApiResponse<DeletionCountdownDto>.Success(new DeletionCountdownDto
+            {
+                Days = 0,
+                Hours = 0,
+                Minutes = 0,
+                Seconds = 0,
+                IsInCooldown = false
+            });
+        }
+
+        return ApiResponse<DeletionCountdownDto>.Success(new DeletionCountdownDto
+        {
+            Days = remaining.Days,
+            Hours = remaining.Hours,
+            Minutes = remaining.Minutes,
+            Seconds = remaining.Seconds,
+            IsInCooldown = true
+        });
+    }
+
     public async Task<ApiResponse<FollowCountsDto>> GetOrgFollowCountsAsync(Guid userId, Guid orgId)
     {
         var isMember = await _context.OrganizationMembers

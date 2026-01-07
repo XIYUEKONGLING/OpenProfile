@@ -29,6 +29,7 @@ public class Account
 
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public DateTime LastLogin { get; set; } = DateTime.UtcNow;
+    public DateTime UpdatedAt { get; set; } = DateTime.UtcNow;
     
     public virtual Profile? Profile { get; set; }
     public virtual AccountSettings? Settings { get; set; }

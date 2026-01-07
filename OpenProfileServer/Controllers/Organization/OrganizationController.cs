@@ -1,6 +1,8 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
+using OpenProfileServer.Constants;
 using OpenProfileServer.Interfaces;
 using OpenProfileServer.Models.DTOs.Account;
 using OpenProfileServer.Models.DTOs.Common;
@@ -199,7 +201,22 @@ public class OrganizationController : ControllerBase
         var result = await _orgService.RestoreOrganizationAsync(GetUserId(), orgId.Value);
         return result.Status ? Ok(result) : StatusCode(403, result);
     }
-    
+
+    /// <summary>
+    /// GET /api/orgs/{org}/deletion-countdown
+    /// Get deletion countdown if organization is in PendingDeletion status (Member access required).
+    /// </summary>
+    [HttpGet("{org}/deletion-countdown")]
+    [EnableRateLimiting(RateLimitPolicies.General)]
+    public async Task<ActionResult<ApiResponse<DeletionCountdownDto>>> GetDeletionCountdown(string org)
+    {
+        var orgId = await ResolveOrgId(org);
+        if (orgId == null) return NotFound(ApiResponse<MessageResponse>.Failure("Organization not found."));
+
+        var result = await _orgService.GetOrgDeletionCountdownAsync(GetUserId(), orgId.Value);
+        return result.Status ? Ok(result) : StatusCode(403, result);
+    }
+
     /// <summary>
     /// GET /api/orgs/{org}/follow-stats
     /// Get organization follow counts (Member access required).

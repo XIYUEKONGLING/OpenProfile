@@ -19,6 +19,9 @@ public static class SystemSettingKeys
     public const string MaxAssetSizeBytes = "MaxAssetSizeBytes";
     public const string MaxGalleryAssetSizeBytes = "MaxGalleryAssetSizeBytes";
     public const string MaxLibraryAssetSizeBytes = "MaxLibraryAssetSizeBytes";
+
+    // Account Deletion
+    public const string AccountDeletionCooldownDays = "AccountDeletionCooldownDays";
     
     // Email Templates
     public const string EmailVerificationSubject = "Email:Template:Verification:Subject";

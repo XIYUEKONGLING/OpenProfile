@@ -23,6 +23,7 @@ public interface IAccountService
     Task<ApiResponse<MessageResponse>> ChangePasswordAsync(Guid accountId, ChangePasswordRequestDto dto);
     Task<ApiResponse<MessageResponse>> RequestDeletionAsync(Guid accountId);
     Task<ApiResponse<MessageResponse>> RestoreAccountAsync(Guid accountId);
+    Task<ApiResponse<DeletionCountdownDto>> GetDeletionCountdownAsync(Guid accountId);
 
     // === Email Management ===
     Task<ApiResponse<IEnumerable<AccountEmailDto>>> GetEmailsAsync(Guid accountId);

@@ -19,6 +19,7 @@ public interface IOrganizationService
     /// Restores an organization that is in PendingDeletion status.
     /// </summary>
     Task<ApiResponse<MessageResponse>> RestoreOrganizationAsync(Guid ownerId, Guid orgId);
+    Task<ApiResponse<DeletionCountdownDto>> GetOrgDeletionCountdownAsync(Guid userId, Guid orgId);
     
     Task<ApiResponse<FollowCountsDto>> GetOrgFollowCountsAsync(Guid userId, Guid orgId);
     

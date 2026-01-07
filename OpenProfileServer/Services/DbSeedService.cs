@@ -121,9 +121,15 @@ public class DbSeedService
             {
                 SystemSettingKeys.MaxLibraryAssetSizeBytes,
                 ("10485760", "number", "Maximum size for asset library items (Default 10MB).")
+            },
+
+            // Account Deletion
+            {
+                SystemSettingKeys.AccountDeletionCooldownDays,
+                ("30", "number", "Number of days to wait before permanently deleting an account in Pending Deletion status.")
             }
-            
-            
+
+
         };
 
         foreach (var (key, (value, type, desc)) in defaults)
