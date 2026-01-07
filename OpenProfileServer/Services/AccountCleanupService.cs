@@ -52,62 +52,76 @@ public class AccountCleanupService : BackgroundService
 
     private async Task<int> ExecuteDeleteAsync(ApplicationDbContext context, DateTime cutoffDate, CancellationToken token)
     {
-        var accountsToDelete = await context.Accounts
+        var accountIds = await context.Accounts
+            .AsNoTracking()
             .Where(a => a.Status == AccountStatus.PendingDeletion && a.DeletedAt < cutoffDate)
-            .Include(a => a.Profile)
-            .Include(a => a.Settings)
-            .Include(a => a.Credential)
-            .Include(a => a.Security)
-            .Include(a => a.Memberships)
-            .Include(a => a.Followers)
-            .Include(a => a.Following)
-            .Include(a => a.BlockedUsers)
-            .Include(a => a.BlockedBy)
-            .Include(a => a.Emails)
-            .Include(a => a.RefreshTokens)
+            .Select(a => a.Id)
             .ToListAsync(token);
 
-        if (accountsToDelete.Count == 0) return 0;
+        if (accountIds.Count == 0) return 0;
 
-        foreach (var account in accountsToDelete)
+        int totalDeleted = 0;
+        foreach (var accountId in accountIds)
         {
-            await DeleteAccountAsync(context, account);
+            var deleted = await DeleteAccountByIdAsync(context, accountId, token);
+            if (deleted) totalDeleted++;
         }
 
-        await context.SaveChangesAsync(token);
-        return accountsToDelete.Count;
+        return totalDeleted;
     }
 
-    private async Task DeleteAccountAsync(ApplicationDbContext context, Account account)
+    private async Task<bool> DeleteAccountByIdAsync(ApplicationDbContext context, Guid accountId, CancellationToken token)
     {
-        context.AccountFollowers.RemoveRange(account.Followers);
-        context.AccountFollowers.RemoveRange(account.Following);
-        context.AccountBlocks.RemoveRange(account.BlockedUsers);
-        context.AccountBlocks.RemoveRange(account.BlockedBy);
-        context.OrganizationMembers.RemoveRange(account.Memberships);
-        context.AccountEmails.RemoveRange(account.Emails);
-        context.RefreshTokens.RemoveRange(account.RefreshTokens);
-
-        if (account.Profile != null)
+        using var transaction = await context.Database.BeginTransactionAsync(token);
+        try
         {
-            context.Profiles.Remove(account.Profile);
-        }
+            await context.AccountFollowers
+                .Where(f => f.FollowerId == accountId || f.FollowingId == accountId)
+                .ExecuteDeleteAsync(token);
 
-        if (account.Settings != null)
+            await context.AccountBlocks
+                .Where(b => b.BlockerId == accountId || b.BlockedId == accountId)
+                .ExecuteDeleteAsync(token);
+
+            await context.OrganizationMembers
+                .Where(m => m.AccountId == accountId)
+                .ExecuteDeleteAsync(token);
+
+            await context.AccountEmails
+                .Where(e => e.AccountId == accountId)
+                .ExecuteDeleteAsync(token);
+
+            await context.RefreshTokens
+                .Where(t => t.AccountId == accountId)
+                .ExecuteDeleteAsync(token);
+
+            await context.Profiles
+                .Where(p => p.Id == accountId)
+                .ExecuteDeleteAsync(token);
+
+            await context.AccountSettings
+                .Where(s => s.Id == accountId)
+                .ExecuteDeleteAsync(token);
+
+            await context.AccountCredentials
+                .Where(c => c.AccountId == accountId)
+                .ExecuteDeleteAsync(token);
+
+            await context.AccountSecurities
+                .Where(s => s.AccountId == accountId)
+                .ExecuteDeleteAsync(token);
+
+            var deleted = await context.Accounts
+                .Where(a => a.Id == accountId)
+                .ExecuteDeleteAsync(token);
+
+            await transaction.CommitAsync(token);
+            return deleted > 0;
+        }
+        catch (Exception)
         {
-            context.AccountSettings.Remove(account.Settings);
+            await transaction.RollbackAsync(token);
+            throw;
         }
-
-        if (account.Credential != null)
-        {
-            context.AccountCredentials.Remove(account.Credential);
-        }
-
-        if (account.Security != null)
-        {
-            context.AccountSecurities.Remove(account.Security);
-        }
-
-        context.Accounts.Remove(account);
     }
 }
