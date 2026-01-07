@@ -472,6 +472,17 @@ public class AdminService : IAdminService
         var personalCount = await _context.PersonalProfiles.CountAsync();
         var notifyCount = await _context.Notifications.CountAsync();
 
+        // Asset Library Statistics
+        var accountAssetCounts = await _context.AccountAssets
+            .AsNoTracking()
+            .GroupBy(a => a.Visibility)
+            .Select(g => new { Visibility = g.Key.ToString(), Count = g.Count() })
+            .ToListAsync();
+
+        var accountAssetTotalCount = await _context.AccountAssets.CountAsync();
+
+        var systemAssetTotalCount = await _context.SystemAssets.CountAsync();
+
         var dto = new SystemStatusDto
         {
             TotalAccountCount = accountStats.Count,
@@ -485,7 +496,13 @@ public class AdminService : IAdminService
 
             TotalOrganizationCount = orgCount,
             TotalPersonalProfileCount = personalCount,
-            TotalNotificationCount = notifyCount
+            TotalNotificationCount = notifyCount,
+
+            TotalAccountAssetCount = accountAssetTotalCount,
+            AccountAssetsByVisibility = accountAssetCounts.ToDictionary(x => x.Visibility, x => x.Count),
+            TotalSystemAssetCount = systemAssetTotalCount,
+
+            ServerTimeUtc = now
         };
 
         return ApiResponse<SystemStatusDto>.Success(dto);
