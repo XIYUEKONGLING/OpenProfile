@@ -143,6 +143,7 @@ Public asset library for static generator and public access. Returns 404 if asse
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | **DELETE** | `/api/me` | **Request Account Deletion**. | Owner | N/A | `MessageResponse` |
 | **POST** | `/api/me/restore` | **Restore Account**. | Owner | N/A | `MessageResponse` |
+| **GET** | `/api/me/deletion-countdown` | **Get Deletion Countdown** (if in PendingDeletion status). | Owner | N/A | `DeletionCountdownDto` |
 
 ### 6.2 Account & Security
 
@@ -258,6 +259,7 @@ Manage your personal asset library. Assets can be images, icons, or other reusab
 | **POST** | `/api/orgs` | Create new organization. | Authenticated | `CreateOrganizationRequestDto` | `Guid` (Org ID) |
 | **DELETE** | `/api/orgs/{org}` | **Request Dissolution**. | Owner | N/A | `MessageResponse` |
 | **POST** | `/api/orgs/{org}/restore` | **Restore Organization**. | Owner | N/A | `MessageResponse` |
+| **GET** | `/api/orgs/{org}/deletion-countdown` | **Get Deletion Countdown** (if in PendingDeletion status). | Any Member | N/A | `DeletionCountdownDto` |
 
 ### 7.2 Settings & Profile
 
