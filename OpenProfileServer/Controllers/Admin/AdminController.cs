@@ -122,7 +122,8 @@ public class AdminController : ControllerBase
     [HttpGet("users/{user}/emails")]
     public async Task<ActionResult<ApiResponse<IEnumerable<AccountEmailDto>>>> GetUserEmails(Guid user)
     {
-        return Ok(await _adminService.AdminGetEmailsAsync(GetAdminId(), user));
+        var result =  await _adminService.AdminGetEmailsAsync(GetAdminId(), user);
+        return result.Status ? Ok(result) : BadRequest(result);
     }
 
     [HttpPost("users/{user}/emails")]
