@@ -345,6 +345,19 @@ Manage organization asset library. Assets can be images, icons, or other reusabl
 | :--- | :--- | :--- | :--- | :--- |
 | **GET** | `/api/orgs/{org}/assets/categories` | List all organization categories (distinct). | Any Member | `IEnumerable<string>` |
 
+### 7.7 Notifications (Inbox)
+
+Organization notifications management. Only Owner and Admin can access.
+
+| Method | Endpoint | Description | Permission | Request Body | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/orgs/{org}/notifications` | List notifications. | Owner/Admin | Query (`page`, `unreadOnly`) | `PagedResponse<NotificationDto>` |
+| **GET** | `/api/orgs/{org}/notifications/unread-count` | Get total unread. | Owner/Admin | N/A | `int` |
+| **PATCH** | `/api/orgs/{org}/notifications/{id}/read` | Mark as read. | Owner/Admin | N/A | `MessageResponse` |
+| **POST** | `/api/orgs/{org}/notifications/read-all` | Mark all read. | Owner/Admin | N/A | `MessageResponse` |
+| **DELETE** | `/api/orgs/{org}/notifications/{id}` | Delete notification. | Owner/Admin | N/A | `MessageResponse` |
+| **DELETE** | `/api/orgs/{org}/notifications` | Delete all read. | Owner/Admin | N/A | `MessageResponse` |
+
 ---
 
 ## 8. System Administration (Dynamic / Protected)
