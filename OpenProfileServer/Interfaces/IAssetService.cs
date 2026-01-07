@@ -15,7 +15,19 @@ public interface IAssetService
     /// Get public asset by UUID (for static generator and public access).
     /// Returns 404 if asset is private, deleted, or belongs to suspended/banned account.
     /// </summary>
-    Task<ApiResponse<AccountAssetDto>> GetPublicAssetAsync(Guid uuid);
+    Task<ApiResponse<PublicAssetDto>> GetPublicAssetAsync(Guid uuid);
+
+    // ==========================================
+    // Cross-Library Asset Lookup
+    // ==========================================
+
+    /// <summary>
+    /// Lookup asset by UUID across all asset libraries (user, organization, system).
+    /// Requires authentication and respects all Visibility settings.
+    /// </summary>
+    /// <param name="uuid">The asset UUID to retrieve</param>
+    /// <param name="currentUserId">Current authenticated user's ID</param>
+    Task<ApiResponse<LookupAssetDto>> LookupAssetAsync(Guid uuid, Guid currentUserId);
 
     // ==========================================
     // Personal Asset Management

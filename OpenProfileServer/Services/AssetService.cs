@@ -84,28 +84,207 @@ public class AssetService : IAssetService
     // Public Asset Library (No Auth)
     // ==========================================
 
-    public async Task<ApiResponse<AccountAssetDto>> GetPublicAssetAsync(Guid uuid)
+    public async Task<ApiResponse<PublicAssetDto>> GetPublicAssetAsync(Guid uuid)
     {
-        var asset = await _context.AccountAssets
+        // Search in AccountAssets first (includes user and organization assets)
+        var accountAsset = await _context.AccountAssets
             .Include(a => a.Account)
             .AsNoTracking()
             .FirstOrDefaultAsync(a => a.Id == uuid);
 
-        if (asset == null)
-            return ApiResponse<AccountAssetDto>.Failure("Asset not found.");
+        if (accountAsset != null)
+        {
+            // Check visibility
+            if (accountAsset.Visibility != Visibility.Public)
+                return ApiResponse<PublicAssetDto>.Failure("Asset not found.");
 
-        // Check visibility
-        if (asset.Visibility != Visibility.Public)
-            return ApiResponse<AccountAssetDto>.Failure("Asset not found.");
+            // Check account status
+            if (accountAsset.Account.Status == AccountStatus.Suspended ||
+                accountAsset.Account.Status == AccountStatus.Banned ||
+                accountAsset.Account.Status == AccountStatus.PendingDeletion)
+            {
+                return ApiResponse<PublicAssetDto>.Failure("Asset not found.");
+            }
 
-        // Check account status
-        if (asset.Account.Status == AccountStatus.Suspended || asset.Account.Status == AccountStatus.Banned)
-            return ApiResponse<AccountAssetDto>.Failure("Asset not found.");
+            return ApiResponse<PublicAssetDto>.Success(new PublicAssetDto
+            {
+                Id = accountAsset.Id,
+                AccountId = accountAsset.AccountId,
+                Category = accountAsset.Category,
+                Notes = accountAsset.Notes,
+                Asset = new AssetDto
+                {
+                    Type = accountAsset.Asset.Type,
+                    Value = accountAsset.Asset.Value,
+                    Tag = accountAsset.Asset.Tag
+                },
+                Visibility = accountAsset.Visibility,
+                CreatedAt = accountAsset.CreatedAt,
+                UpdatedAt = accountAsset.UpdatedAt
+            });
+        }
 
-        if (asset.Account.Status == AccountStatus.PendingDeletion)
-            return ApiResponse<AccountAssetDto>.Failure("Asset not found.");
+        // Search in SystemAssets
+        var systemAsset = await _context.SystemAssets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == uuid);
 
-        return ApiResponse<AccountAssetDto>.Success(MapAccountAssetDto(asset));
+        if (systemAsset != null)
+        {
+            // Check visibility
+            if (systemAsset.Visibility != Visibility.Public)
+                return ApiResponse<PublicAssetDto>.Failure("Asset not found.");
+
+            return ApiResponse<PublicAssetDto>.Success(new PublicAssetDto
+            {
+                Id = systemAsset.Id,
+                AccountId = null,  // System assets have no owner
+                Category = systemAsset.Category,
+                Notes = systemAsset.Notes,
+                Asset = new AssetDto
+                {
+                    Type = systemAsset.Asset.Type,
+                    Value = systemAsset.Asset.Value,
+                    Tag = systemAsset.Asset.Tag
+                },
+                Visibility = systemAsset.Visibility,
+                CreatedAt = systemAsset.CreatedAt,
+                UpdatedAt = systemAsset.UpdatedAt
+            });
+        }
+
+        return ApiResponse<PublicAssetDto>.Failure("Asset not found.");
+    }
+
+    // ==========================================
+    // Cross-Library Asset Lookup
+    // ==========================================
+
+    public async Task<ApiResponse<LookupAssetDto>> LookupAssetAsync(Guid uuid, Guid currentUserId)
+    {
+        // Search in AccountAssets (user and organization assets)
+        var accountAsset = await _context.AccountAssets
+            .Include(a => a.Account)
+                .ThenInclude(ac => ac.Memberships)
+            .Include(a => a.Account)
+                .ThenInclude(ac => ac.Followers)
+            .Include(a => a.Account)
+                .ThenInclude(ac => ac.Following)
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == uuid);
+
+        if (accountAsset != null)
+        {
+            var account = accountAsset.Account;
+            var assetOwnerId = account.Id;
+
+            // Check account status
+            if (account.Status == AccountStatus.Suspended ||
+                account.Status == AccountStatus.Banned ||
+                account.Status == AccountStatus.PendingDeletion)
+            {
+                return ApiResponse<LookupAssetDto>.Failure("Asset not found.");
+            }
+
+            var isOwner = currentUserId == assetOwnerId;
+
+            // Check visibility based on current user
+            bool hasAccess = accountAsset.Visibility switch
+            {
+                Visibility.Public => true,
+                Visibility.Authenticated => true,  // Already authenticated
+                Visibility.Private => isOwner,
+                Visibility.Protected => true,  // Already authenticated
+                Visibility.FriendsOnly when isOwner => true,
+                Visibility.FriendsOnly => CheckIsFriend(account, currentUserId),
+                Visibility.MembersOnly when isOwner => true,
+                Visibility.MembersOnly when account.Type == AccountType.Organization =>
+                    CheckIsOrganizationMember(account, currentUserId),
+                Visibility.MembersOnly => false,  // Personal account with Membership visibility - not supported
+                _ => false
+            };
+
+            if (!hasAccess)
+                return ApiResponse<LookupAssetDto>.Failure("Asset not found.");
+
+            return ApiResponse<LookupAssetDto>.Success(new LookupAssetDto
+            {
+                Id = accountAsset.Id,
+                AccountId = accountAsset.AccountId,
+                Category = accountAsset.Category,
+                Notes = accountAsset.Notes,
+                Asset = new AssetDto
+                {
+                    Type = accountAsset.Asset.Type,
+                    Value = accountAsset.Asset.Value,
+                    Tag = accountAsset.Asset.Tag
+                },
+                Visibility = accountAsset.Visibility,
+                CreatedAt = accountAsset.CreatedAt,
+                UpdatedAt = accountAsset.UpdatedAt
+            });
+        }
+
+        // Search in SystemAssets
+        var systemAsset = await _context.SystemAssets
+            .AsNoTracking()
+            .FirstOrDefaultAsync(a => a.Id == uuid);
+
+        if (systemAsset != null)
+        {
+            // Get current user role
+            var currentUser = await _context.Accounts
+                .AsNoTracking()
+                .FirstOrDefaultAsync(a => a.Id == currentUserId);
+
+            bool isAdmin = currentUser != null &&
+                           (currentUser.Role == AccountRole.Admin || currentUser.Role == AccountRole.Root);
+
+            // Check visibility
+            bool hasAccess = systemAsset.Visibility switch
+            {
+                Visibility.Public => true,
+                Visibility.Authenticated => true,  // Already authenticated
+                Visibility.Protected => true,  // Already authenticated
+                Visibility.Private => isAdmin,  // Only admins can see private system assets
+                Visibility.FriendsOnly => false,  // Not applicable to system assets
+                Visibility.MembersOnly => false,  // Not applicable to system assets
+                _ => false
+            };
+
+            if (!hasAccess)
+                return ApiResponse<LookupAssetDto>.Failure("Asset not found.");
+
+            return ApiResponse<LookupAssetDto>.Success(new LookupAssetDto
+            {
+                Id = systemAsset.Id,
+                AccountId = null,  // System assets have no owner
+                Category = systemAsset.Category,
+                Notes = systemAsset.Notes,
+                Asset = new AssetDto
+                {
+                    Type = systemAsset.Asset.Type,
+                    Value = systemAsset.Asset.Value,
+                    Tag = systemAsset.Asset.Tag
+                },
+                Visibility = systemAsset.Visibility,
+                CreatedAt = systemAsset.CreatedAt,
+                UpdatedAt = systemAsset.UpdatedAt
+            });
+        }
+
+        return ApiResponse<LookupAssetDto>.Failure("Asset not found.");
+    }
+
+    private static bool CheckIsFriend(Account account, Guid currentUserId)
+    {
+        return account.Followers.Any(f => f.FollowerId == currentUserId) &&
+               account.Following.Any(f => f.FollowingId == currentUserId);
+    }
+
+    private static bool CheckIsOrganizationMember(Account account, Guid currentUserId)
+    {
+        return account.Memberships.Any(m => m.AccountId == currentUserId);
     }
 
     // ==========================================

@@ -19,18 +19,16 @@ public class AssetsController : ControllerBase
     {
         _assetService = assetService;
     }
-    
-    // TODO
 
     /// <summary>
     /// GET /api/assets/{uuid}
     /// Get public asset by UUID.
+    /// Searches across user assets, organization assets, and system assets.
     /// Returns 404 if asset is private, deleted, or belongs to suspended/banned account.
     /// </summary>
     [HttpGet("{uuid}")]
     [HttpGet("{uuid}.json")]
-    
-    public async Task<ActionResult<ApiResponse<AccountAssetDto>>> GetAsset(Guid uuid)
+    public async Task<ActionResult<ApiResponse<PublicAssetDto>>> GetAsset(Guid uuid)
     {
         var result = await _assetService.GetPublicAssetAsync(uuid);
         if (!result.Status)
