@@ -43,7 +43,6 @@ public enum AssetType
 
     /// <summary>
     /// Reference to system global asset library (SystemAsset.Id).
-    /// System reserved, not available for user use.
     /// When set, Asset.Value contains the UUID of the SystemAsset.
     /// </summary>
     Resource = 8,
