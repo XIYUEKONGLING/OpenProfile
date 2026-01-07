@@ -375,7 +375,7 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(a => a.AccountId);
             entity.HasIndex(a => a.Visibility);
 
-            entity.HasOne<Account>()
+            entity.HasOne<Account>(a => a.Account)
                 .WithMany()
                 .HasForeignKey(a => a.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
