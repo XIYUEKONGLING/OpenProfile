@@ -14,10 +14,10 @@ public static class AssetValidator
         if (asset == null || string.IsNullOrEmpty(asset.Value))
             return (true, null);
 
-        // 1. Prohibit the use of 'Identifier' from frontend (Reserved for system/backend)
-        if (asset.Type == AssetType.Identifier)
+        // 1. Prohibit the use of reserved types from frontend (Reserved for system/backend)
+        if (asset.Type == AssetType.Identifier || asset.Type == AssetType.System)
         {
-            return (false, $"{fieldName}: Type 'Identifier' is reserved for system use.");
+            return (false, $"{fieldName}: Type '{asset.Type}' is reserved for system use.");
         }
 
         // 2. Size Check
