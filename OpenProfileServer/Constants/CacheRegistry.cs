@@ -88,4 +88,18 @@ public static class CacheKeys
     /// </summary>
     public static string MemberRole(Guid orgId, Guid userId) => $"Org:Role:{orgId}:{userId}";
 
+    // ==========================================
+    // Asset Library
+    // ==========================================
+
+    /// <summary>
+    /// Cache key for public account assets.
+    /// </summary>
+    public static string PublicAsset(Guid assetId) => $"Asset:Public:{assetId}";
+
+    /// <summary>
+    /// Cache key for system assets.
+    /// </summary>
+    public static string SystemAsset(Guid assetId) => $"Asset:System:{assetId}";
+
 }

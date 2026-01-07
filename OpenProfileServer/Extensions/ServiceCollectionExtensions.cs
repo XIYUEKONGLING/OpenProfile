@@ -318,7 +318,10 @@ public static class ServiceCollectionExtensions
         
         // Admin
         services.AddScoped<IAdminService, AdminService>();
-        
+
+        // Asset Library
+        services.AddScoped<IAssetService, AssetService>();
+
         // Infrastructure
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<DbSeedService>();
