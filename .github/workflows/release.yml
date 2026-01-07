@@ -26,10 +26,6 @@ permissions:
 
 env:
   DOTNET_VERSION: "10.0.x"
-  SOLUTION_FILE: "OpenProfile.sln"
-  SERVER_PROJECT: "OpenProfileServer/OpenProfileServer.csproj"
-  GENERATOR_PROJECT: "OpenProfileServer.Generator/OpenProfileServer.Generator.csproj"
-  RELEASE_BRANCH: "release"
 
 jobs:
   prepare-release:
@@ -77,7 +73,6 @@ jobs:
           if [ "${{ github.event.inputs.pre_release }}" = "true" ]; then
             echo "is_pre_release=true" >> $GITHUB_OUTPUT
           else
-            # Auto-detect pre-release from tag (contains alpha, beta, rc, etc.)
             TAG="${{ steps.get-tag.outputs.tag }}"
             if [[ "$TAG" =~ -(alpha|beta|rc|pre|preview) ]]; then
               echo "is_pre_release=true" >> $GITHUB_OUTPUT
@@ -106,50 +101,44 @@ jobs:
         id: get-contributors
         shell: bash
         run: |
-          # Get contributors since last tag
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
           if [ -z "$LAST_TAG" ]; then
             CONTRIBUTORS=$(git log --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commit(s))"}')
           else
             CONTRIBUTORS=$(git log ${LAST_TAG}..HEAD --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commit(s))"}')
           fi
+          
+          if [ -z "$CONTRIBUTORS" ]; then CONTRIBUTORS="No new contributors"; fi
 
-          if [ -z "$CONTRIBUTORS" ]; then
-            CONTRIBUTORS="No new contributors in this release"
-          fi
-
-          # Save to file for multiline output
-          echo "$CONTRIBUTORS" > /tmp/contributors.txt
-
-          # Convert to single line with newlines escaped
-          echo "contributors=$(cat /tmp/contributors.txt | jq -Rs .)" >> $GITHUB_OUTPUT
+          {
+            echo "contributors<<EOF"
+            echo "$CONTRIBUTORS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
       - name: Generate What's Changed
         id: whats-changed
         shell: bash
         run: |
-          # Get commits since last tag
           LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
-
           if [ -z "$LAST_TAG" ]; then
             COMMITS=$(git log --pretty=format:"- %s" --reverse)
-            CHANGE_COUNT=$(git rev-list --count HEAD)
           else
             COMMITS=$(git log ${LAST_TAG}..HEAD --pretty=format:"- %s" --reverse)
-            CHANGE_COUNT=$(git rev-list ${LAST_TAG}..HEAD --count)
           fi
+          
+          if [ -z "$COMMITS" ]; then COMMITS="No changes"; fi
 
-          if [ -z "$COMMITS" ]; then
-            COMMITS="No changes in this release"
-          fi
-
-          echo "changes=$(echo "$COMMITS" | jq -Rs .)" >> $GITHUB_OUTPUT
-          echo "Generated changelog with $CHANGE_COUNT changes"
+          # 使用 EOF 语法正确处理多行输出
+          {
+            echo "changes<<EOF"
+            echo "$COMMITS"
+            echo "EOF"
+          } >> $GITHUB_OUTPUT
 
   build:
-    name: Build ${{ matrix.project }} on ${{ matrix.platform }}
-    runs-on: ${{ matrix.runner }}
+    name: Build ${{ matrix.project.name }} on ${{ matrix.platform.name }}
+    runs-on: ${{ matrix.platform.runner }}
     needs: prepare-release
 
     strategy:
@@ -169,10 +158,10 @@ jobs:
             rid: osx-arm64
         project:
           - name: OpenProfileServer
-            project_file: ${{ env.SERVER_PROJECT }}
+            project_file: "OpenProfileServer/OpenProfileServer.csproj"
             output_name: openprofile-server
           - name: OpenProfileServer.Generator
-            project_file: ${{ env.GENERATOR_PROJECT }}
+            project_file: "OpenProfileServer.Generator/OpenProfileServer.Generator.csproj"
             output_name: openprofile-generator
       fail-fast: false
 
@@ -182,7 +171,7 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Setup .NET ${{ env.DOTNET_VERSION }}
+      - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
@@ -202,7 +191,6 @@ jobs:
             SINGLE_FILE_ARGS="$SINGLE_FILE_ARGS -p:IncludeNativeLibrariesForSelfExtract=true"
           fi
 
-          # Build self-contained single file
           dotnet publish "${{ matrix.project.project_file }}" \
             --configuration Release \
             --runtime "${{ matrix.platform.rid }}" \
@@ -213,9 +201,8 @@ jobs:
             $SINGLE_FILE_ARGS
 
           mkdir -p ./artifacts
-          pushd "$OUTPUT_DIR" || exit 1
-          tar -czf "../../artifacts/$ARCHIVE_NAME" *
-          popd || exit 1
+          # 使用 -C 参数简化 tar 命令，避免 pushd/popd 错误
+          tar -czf "./artifacts/$ARCHIVE_NAME" -C "$OUTPUT_DIR" .
 
           echo "Created archive: $ARCHIVE_NAME"
 
@@ -235,7 +222,7 @@ jobs:
       - name: Check out Git repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -253,15 +240,12 @@ jobs:
           generate_release_notes: false
           body: |
             ## What's Changed
-
             ${{ needs.prepare-release.outputs.whats_changed }}
 
             ## Contributors
-
             ${{ needs.prepare-release.outputs.contributors }}
 
             ---
-
             **Full Changelog**: https://github.com/${{ github.repository }}/commits/${{ needs.prepare-release.outputs.tag }}
           files: ./artifacts/*/*
         env:
