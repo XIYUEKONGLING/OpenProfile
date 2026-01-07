@@ -317,6 +317,34 @@ Manage your personal asset library. Assets can be images, icons, or other reusab
 - **PATCH** `.../{id}`: Authorized if User is Owner or Admin.
 - **DELETE** `.../{id}`: Authorized if User is Owner or Admin.
 
+### 7.6 Asset Library (Organization Management)
+
+Manage organization asset library. Assets can be images, icons, or other reusable resources.
+
+#### 7.6.1 Asset Management
+
+| Method | Endpoint | Description | Permission | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/orgs/{org}/assets` | List organization assets (paginated). | Any Member | Query: `?page=&pageSize=&category=&visibility=&search=` | `PagedResponse<AccountAssetDto>` |
+| **GET** | `/api/orgs/{org}/assets/{uuid}` | Get specific organization asset. | Any Member | N/A | `AccountAssetDto` |
+| **POST** | `/api/orgs/{org}/assets` | Create new organization asset. | Owner/Admin | `CreateAccountAssetRequestDto` | `AccountAssetDto` |
+| **PUT** | `/api/orgs/{org}/assets/{uuid}` | Full update organization asset. | Owner/Admin | `CreateAccountAssetRequestDto` | `AccountAssetDto` |
+| **PATCH** | `/api/orgs/{org}/assets/{uuid}` | Partial update organization asset. | Owner/Admin | `UpdateAccountAssetRequestDto` | `AccountAssetDto` |
+| **DELETE** | `/api/orgs/{org}/assets/{uuid}` | Delete organization asset. | Owner/Admin | N/A | `MessageResponse` |
+
+#### 7.6.2 Batch Operations
+
+| Method | Endpoint | Description | Permission | Request Body (DTO) | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **PATCH** | `/api/orgs/{org}/assets/batch/visibility` | Batch update visibility. | Owner/Admin | `BatchUpdateVisibilityRequestDto` | `MessageResponse` |
+| **DELETE** | `/api/orgs/{org}/assets/batch` | Batch delete assets. | Owner/Admin | `BatchDeleteRequestDto` | `MessageResponse` |
+
+#### 7.6.3 Categories
+
+| Method | Endpoint | Description | Permission | Response Data (DTO) |
+| :--- | :--- | :--- | :--- | :--- |
+| **GET** | `/api/orgs/{org}/assets/categories` | List all organization categories (distinct). | Any Member | `IEnumerable<string>` |
+
 ---
 
 ## 8. System Administration (Dynamic / Protected)
