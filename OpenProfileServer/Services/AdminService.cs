@@ -476,7 +476,7 @@ public class AdminService : IAdminService
         var accountAssetCounts = await _context.AccountAssets
             .AsNoTracking()
             .GroupBy(a => a.Visibility)
-            .Select(g => new { Visibility = g.Key.ToString(), Count = g.Count() })
+            .Select(g => new { Visibility = g.Key, Count = g.Count() })
             .ToListAsync();
 
         var accountAssetTotalCount = await _context.AccountAssets.CountAsync();

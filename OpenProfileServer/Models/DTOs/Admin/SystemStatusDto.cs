@@ -24,7 +24,7 @@ public class SystemStatusDto
 
     // Asset Library Statistics
     public int TotalAccountAssetCount { get; set; }
-    public Dictionary<string, int> AccountAssetsByVisibility { get; set; } = [];
+    public Dictionary<Visibility, int> AccountAssetsByVisibility { get; set; } = [];
     public int TotalSystemAssetCount { get; set; }
 
     public DateTime ServerTimeUtc { get; set; } = DateTime.UtcNow;
