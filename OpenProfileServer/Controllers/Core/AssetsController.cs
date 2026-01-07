@@ -28,22 +28,9 @@ public class AssetsController : ControllerBase
     /// Returns 404 if asset is private, deleted, or belongs to suspended/banned account.
     /// </summary>
     [HttpGet("{uuid}")]
-    public async Task<ActionResult<ApiResponse<AccountAssetDto>>> GetAsset(Guid uuid)
-    {
-        var result = await _assetService.GetPublicAssetAsync(uuid);
-        if (!result.Status)
-        {
-            return NotFound(result);
-        }
-        return Ok(result);
-    }
-
-    /// <summary>
-    /// GET /api/assets/{uuid}.json
-    /// Alias for static generator compatibility.
-    /// </summary>
     [HttpGet("{uuid}.json")]
-    public async Task<ActionResult<ApiResponse<AccountAssetDto>>> GetAssetJson(Guid uuid)
+    
+    public async Task<ActionResult<ApiResponse<AccountAssetDto>>> GetAsset(Guid uuid)
     {
         var result = await _assetService.GetPublicAssetAsync(uuid);
         if (!result.Status)
