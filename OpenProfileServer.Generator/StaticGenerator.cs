@@ -232,31 +232,42 @@ public class StaticGenerator
         var assetsDir = Path.Combine(basePath, "assets");
         Directory.CreateDirectory(assetsDir);
 
-        // Get all public assets
-        var publicAssets = await _context.AccountAssets
+        // Get all public assets from AccountAssets (user and organization assets)
+        var publicAccountAssets = await _context.AccountAssets
             .AsNoTracking()
             .Include(a => a.Account)
             .Where(a => a.Visibility == Visibility.Public)
             .Select(a => new { a.Id, a.Account.Status })
             .ToListAsync();
 
-        if (publicAssets.Count == 0)
+        // Get all public system assets
+        var publicSystemAssets = await _context.SystemAssets
+            .AsNoTracking()
+            .Where(a => a.Visibility == Visibility.Public)
+            .Select(a => a.Id)
+            .ToListAsync();
+
+        int totalAssets = publicAccountAssets.Count + publicSystemAssets.Count;
+        if (totalAssets == 0)
         {
             _logger.LogInformation("No public assets found.");
             return;
         }
 
-        _logger.LogInformation("Found {Count} public assets. Starting export...", publicAssets.Count);
+        _logger.LogInformation("Found {AccountCount} account assets and {SystemCount} system assets. Starting export...",
+            publicAccountAssets.Count, publicSystemAssets.Count);
 
         int count = 0;
-        foreach (var asset in publicAssets)
+
+        // Export account assets
+        foreach (var asset in publicAccountAssets)
         {
             try
             {
                 // Skip if account is not active
                 if (asset.Status != AccountStatus.Active)
                 {
-                    _logger.LogDebug("Skipping asset {AssetId}: Account is not active.", asset.Id);
+                    _logger.LogDebug("Skipping account asset {AssetId}: Account is not active.", asset.Id);
                     continue;
                 }
 
@@ -270,12 +281,36 @@ public class StaticGenerator
                 }
                 else
                 {
-                    _logger.LogDebug("Skipping asset {AssetId}: Service returned failure.", asset.Id);
+                    _logger.LogDebug("Skipping account asset {AssetId}: Service returned failure.", asset.Id);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to generate asset {AssetId}", asset.Id);
+                _logger.LogError(ex, "Failed to generate account asset {AssetId}", asset.Id);
+            }
+        }
+
+        // Export system assets
+        foreach (var assetId in publicSystemAssets)
+        {
+            try
+            {
+                count++;
+                var assetResponse = await _assetService.GetPublicAssetAsync(assetId);
+
+                if (assetResponse.Status)
+                {
+                    var assetPath = Path.Combine(assetsDir, $"{assetId}.json");
+                    await WriteJsonAsync(assetPath, assetResponse);
+                }
+                else
+                {
+                    _logger.LogDebug("Skipping system asset {AssetId}: Service returned failure.", assetId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to generate system asset {AssetId}", assetId);
             }
         }
 
