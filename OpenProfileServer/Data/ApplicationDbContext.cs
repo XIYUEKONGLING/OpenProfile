@@ -26,8 +26,12 @@ public class ApplicationDbContext : DbContext
     public DbSet<AccountSecurity> AccountSecurities { get; set; }
     public DbSet<RefreshToken> RefreshTokens { get; set; }
     public DbSet<Notification> Notifications { get; set; }
-    
+
     public DbSet<VerificationCode> VerificationCodes { get; set; }
+
+    // Asset Libraries
+    public DbSet<AccountAsset> AccountAssets { get; set; }
+    public DbSet<SystemAsset> SystemAssets { get; set; }
     
     // Organization Relations
     public DbSet<OrganizationMember> OrganizationMembers { get; set; }
@@ -76,7 +80,8 @@ public class ApplicationDbContext : DbContext
         ConfigureDetails(modelBuilder);
         ConfigureSystemSettings(modelBuilder);
         ConfigureSiteMetadata(modelBuilder);
-        
+        ConfigureAssetLibraries(modelBuilder);
+
         // Verification Code Config
         modelBuilder.Entity<VerificationCode>(entity =>
         {
@@ -358,6 +363,41 @@ public class ApplicationDbContext : DbContext
                 nav.Property(p => p.Type).HasColumnName("Icon_Type");
                 nav.Property(p => p.Value).HasColumnName("Icon_Value");
                 nav.Property(p => p.Tag).HasColumnName("Icon_Tag");
+            });
+        });
+    }
+
+    private static void ConfigureAssetLibraries(ModelBuilder modelBuilder)
+    {
+        // AccountAsset Config
+        modelBuilder.Entity<AccountAsset>(entity =>
+        {
+            entity.HasIndex(a => a.AccountId);
+            entity.HasIndex(a => a.Visibility);
+
+            entity.HasOne<Account>()
+                .WithMany()
+                .HasForeignKey(a => a.AccountId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.OwnsOne(a => a.Asset, nav =>
+            {
+                nav.Property(p => p.Type).HasColumnName("Asset_Type");
+                nav.Property(p => p.Value).HasColumnName("Asset_Value");
+                nav.Property(p => p.Tag).HasColumnName("Asset_Tag");
+            });
+        });
+
+        // SystemAsset Config
+        modelBuilder.Entity<SystemAsset>(entity =>
+        {
+            entity.HasIndex(a => a.Visibility);
+
+            entity.OwnsOne(a => a.Asset, nav =>
+            {
+                nav.Property(p => p.Type).HasColumnName("Asset_Type");
+                nav.Property(p => p.Value).HasColumnName("Asset_Value");
+                nav.Property(p => p.Tag).HasColumnName("Asset_Tag");
             });
         });
     }
