@@ -21,6 +21,7 @@ public class StaticGenerator
     private readonly ISocialService _socialService;
     private readonly ISiteMetadataService _metaService;
     private readonly ISystemSettingService _settingService;
+    private readonly IAssetService _assetService;
     private readonly ApplicationOptions _appOptions;
     private readonly ILogger<StaticGenerator> _logger;
     
@@ -33,6 +34,7 @@ public class StaticGenerator
         ISocialService socialService,
         ISiteMetadataService metaService,
         ISystemSettingService settingService,
+        IAssetService assetService,
         IOptions<ApplicationOptions> appOptions,
         ILogger<StaticGenerator> logger)
     {
@@ -42,6 +44,7 @@ public class StaticGenerator
         _socialService = socialService;
         _metaService = metaService;
         _settingService = settingService;
+        _assetService = assetService;
         _appOptions = appOptions.Value;
         _logger = logger;
 
@@ -66,6 +69,9 @@ public class StaticGenerator
 
         _logger.LogInformation("Generating Profiles...");
         await GenerateProfilesAsync(apiPath);
+
+        _logger.LogInformation("Generating Public Asset Library...");
+        await GenerateAssetLibraryAsync(apiPath);
     }
 
     private async Task GenerateSystemInfoAsync(string basePath)
@@ -219,5 +225,60 @@ public class StaticGenerator
     {
         var json = JsonSerializer.Serialize(data, _jsonOptions);
         await File.WriteAllTextAsync(path, json);
+    }
+
+    private async Task GenerateAssetLibraryAsync(string basePath)
+    {
+        var assetsDir = Path.Combine(basePath, "assets");
+        Directory.CreateDirectory(assetsDir);
+
+        // Get all public assets
+        var publicAssets = await _context.AccountAssets
+            .AsNoTracking()
+            .Include(a => a.Account)
+            .Where(a => a.Visibility == Visibility.Public)
+            .Select(a => new { a.Id, a.Account.Status })
+            .ToListAsync();
+
+        if (publicAssets.Count == 0)
+        {
+            _logger.LogInformation("No public assets found.");
+            return;
+        }
+
+        _logger.LogInformation("Found {Count} public assets. Starting export...", publicAssets.Count);
+
+        int count = 0;
+        foreach (var asset in publicAssets)
+        {
+            try
+            {
+                // Skip if account is not active
+                if (asset.Status != AccountStatus.Active)
+                {
+                    _logger.LogDebug("Skipping asset {AssetId}: Account is not active.", asset.Id);
+                    continue;
+                }
+
+                count++;
+                var assetResponse = await _assetService.GetPublicAssetAsync(asset.Id);
+
+                if (assetResponse.Status)
+                {
+                    var assetPath = Path.Combine(assetsDir, $"{asset.Id}.json");
+                    await WriteJsonAsync(assetPath, assetResponse);
+                }
+                else
+                {
+                    _logger.LogDebug("Skipping asset {AssetId}: Service returned failure.", asset.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to generate asset {AssetId}", asset.Id);
+            }
+        }
+
+        _logger.LogInformation("Exported {Count} public assets.", count);
     }
 }
