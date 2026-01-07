@@ -112,8 +112,8 @@ jobs:
             CONTRIBUTORS=$(git log --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commits)"}')
           else
             echo "Generating changelog from $PREV_TAG to HEAD."
-            COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (@%an)" --reverse)
-            CONTRIBUTORS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commits)"}')
+            COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (@**%an**)" --reverse)
+            CONTRIBUTORS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- @" $2 " (" $1 " Commits)"}')
           fi
 
           # Handle empty results
