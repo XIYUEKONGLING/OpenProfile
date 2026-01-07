@@ -29,7 +29,6 @@ permissions:
   contents: write
 
 env:
-  # Using .NET 8.0 (LTS) or 9.0. Ensure this matches your project target.
   DOTNET_VERSION: "8.0.x"
 
 jobs:
@@ -56,7 +55,6 @@ jobs:
         id: config
         shell: bash
         run: |
-          # 1. Determine Tag
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             TAG="${{ github.event.inputs.tag }}"
           else
@@ -64,14 +62,12 @@ jobs:
           fi
           echo "tag=$TAG" >> $GITHUB_OUTPUT
 
-          # 2. Determine Title
           if [ -n "${{ github.event.inputs.title }}" ]; then
             echo "title=${{ github.event.inputs.title }}" >> $GITHUB_OUTPUT
           else
             echo "title=Release $TAG" >> $GITHUB_OUTPUT
           fi
 
-          # 3. Determine Pre-release status
           if [ "${{ github.event.inputs.pre_release }}" = "true" ]; then
             echo "is_pre_release=true" >> $GITHUB_OUTPUT
           elif [[ "$TAG" =~ -(alpha|beta|rc|pre|preview) ]]; then
@@ -80,10 +76,7 @@ jobs:
             echo "is_pre_release=false" >> $GITHUB_OUTPUT
           fi
 
-          # 4. Determine Draft status
           echo "is_draft=${{ github.event.inputs.draft }}" >> $GITHUB_OUTPUT
-
-          # 5. Get Commit SHA
           echo "commit_sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Generate Changelog
@@ -93,34 +86,32 @@ jobs:
           CURRENT_TAG="${{ steps.config.outputs.tag }}"
           INPUT_PREV="${{ github.event.inputs.previous_tag }}"
           
-          # Try to find the previous tag automatically if not provided
           if [ -n "$INPUT_PREV" ]; then
             PREV_TAG="$INPUT_PREV"
           else
-            # Get the tag before the current HEAD
             PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
           fi
 
           echo "Current: $CURRENT_TAG, Previous: $PREV_TAG"
           echo "previous_tag=$PREV_TAG" >> $GITHUB_OUTPUT
 
-          # Generate Commit List
-          # Format: - Subject (@Author)
+          # 统一格式：
+          # Commits: - Subject (@**Author**)
+          # Contributors: - **Author** (Count commits)
+
           if [ -z "$PREV_TAG" ]; then
             echo "No previous tag found. Listing all commits."
-            COMMITS=$(git log --pretty=format:"- %s (@%an)" --reverse)
-            CONTRIBUTORS=$(git log --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- " $2 " (" $1 " commits)"}')
+            COMMITS=$(git log --pretty=format:"- %s (@**%an**)" --reverse)
+            CONTRIBUTORS=$(git log --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- **" $2 "** (" $1 " commits)"}')
           else
             echo "Generating changelog from $PREV_TAG to HEAD."
             COMMITS=$(git log ${PREV_TAG}..HEAD --pretty=format:"- %s (@**%an**)" --reverse)
-            CONTRIBUTORS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- @" $2 " (" $1 " Commits)"}')
+            CONTRIBUTORS=$(git log ${PREV_TAG}..HEAD --pretty=format:"%an" | sort | uniq -c | sort -nr | awk '{print "- **" $2 "** (" $1 " commits)"}')
           fi
 
-          # Handle empty results
           if [ -z "$COMMITS" ]; then COMMITS="No visible changes."; fi
           if [ -z "$CONTRIBUTORS" ]; then CONTRIBUTORS="No new contributors."; fi
 
-          # Output Multi-line strings using EOF
           {
             echo "changes<<EOF"
             echo "$COMMITS"
@@ -180,9 +171,6 @@ jobs:
           OUTPUT_DIR="./publish/${{ matrix.project.name }}"
           ARCHIVE_NAME="${{ matrix.project.output_name }}-${{ matrix.platform.rid }}.zip"
 
-          # Optimization: Removed PublishReadyToRun=true to speed up build significantly
-          # Optimization: PublishTrimmed=false prevents analysis delays and runtime errors
-          
           EXTRA_ARGS="-p:PublishSingleFile=true -p:IncludeAllContentForSelfExtract=true"
           
           if [[ "${{ matrix.platform.rid }}" == win-* ]]; then
@@ -200,16 +188,15 @@ jobs:
             -p:PublishReadyToRun=false \
             $EXTRA_ARGS
 
-          # Compress Artifacts
           mkdir -p ./artifacts
-
           echo "Compressing to $ARCHIVE_NAME..."
           
           if [[ "${{ matrix.platform.runner }}" == "windows-latest" ]]; then
-            # Use 7z on Windows Git Bash for speed
-            7z a -tzip "./artifacts/$ARCHIVE_NAME" "$OUTPUT_DIR/*"
+            # Windows: Enter directory first to ensure clean zip structure
+            cd "$OUTPUT_DIR"
+            7z a -tzip "../../artifacts/$ARCHIVE_NAME" .
           else
-            # Use zip on Linux/Mac
+            # Linux/Mac
             cd "$OUTPUT_DIR"
             zip -r "../../artifacts/$ARCHIVE_NAME" .
           fi
