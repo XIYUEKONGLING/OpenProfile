@@ -18,6 +18,7 @@ public static class SystemSettingKeys
     // Asset Limits
     public const string MaxAssetSizeBytes = "MaxAssetSizeBytes";
     public const string MaxGalleryAssetSizeBytes = "MaxGalleryAssetSizeBytes";
+    public const string MaxLibraryAssetSizeBytes = "MaxLibraryAssetSizeBytes";
     
     // Email Templates
     public const string EmailVerificationSubject = "Email:Template:Verification:Subject";

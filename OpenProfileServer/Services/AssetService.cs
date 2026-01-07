@@ -33,7 +33,8 @@ public class AssetService : IAssetService
     {
         if (asset == null) return null;
 
-        int maxSize = await _settingService.GetIntAsync(SystemSettingKeys.MaxAssetSizeBytes, 5242880); // TODO
+        // 10MB default for asset library
+        int maxSize = await _settingService.GetIntAsync(SystemSettingKeys.MaxLibraryAssetSizeBytes, 10485760);
         var validation = AssetValidator.Validate(asset, maxSize);
         if (!validation.Valid) return validation.Error;
 
