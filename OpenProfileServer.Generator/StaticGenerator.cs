@@ -185,6 +185,8 @@ public class StaticGenerator
         await ExportSubResource(subResDir, "contacts", () => _detailService.GetContactsAsync(accountId, publicOnly: true));
         await ExportSubResource(subResDir, "certificates", () => _detailService.GetCertificatesAsync(accountId, publicOnly: true));
         await ExportSubResource(subResDir, "sponsorships", () => _detailService.GetSponsorshipsAsync(accountId, publicOnly: true));
+        await ExportSubResource(subResDir, "projects", () => _detailService.GetProjectsAsync(accountId, publicOnly: true));
+        await ExportSubResource(subResDir, "memberships", () => _detailService.GetPublicMembershipsAsync(accountId));
         
         // 4. Social Lists
         await ExportSubResource(subResDir, "followers", () => _socialService.GetFollowersAsync(accountId));
@@ -198,8 +200,6 @@ public class StaticGenerator
         {
             await ExportSubResource(subResDir, "work", () => _detailService.GetWorkAsync(accountId, publicOnly: true));
             await ExportSubResource(subResDir, "education", () => _detailService.GetEducationAsync(accountId, publicOnly: true));
-            await ExportSubResource(subResDir, "projects", () => _detailService.GetProjectsAsync(accountId, publicOnly: true));
-            await ExportSubResource(subResDir, "memberships", () => _detailService.GetPublicMembershipsAsync(accountId));
         }
         else if (type == AccountType.Organization)
         {
