@@ -764,6 +764,11 @@ public class AssetService : IAssetService
         if (visibility.HasValue)
             query = query.Where(a => a.Visibility == visibility.Value);
 
+        if (!string.IsNullOrEmpty(search))
+            query = query.Where(a => (a.Category != null && a.Category.Contains(search)) ||
+                                    (a.Notes != null && a.Notes.Contains(search)) ||
+                                    (a.Asset.Tag != null && a.Asset.Tag.Contains(search)));
+
         var totalCount = await query.CountAsync();
 
         var assets = await query
