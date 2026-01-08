@@ -150,7 +150,8 @@ public interface IAssetService
         int page,
         int pageSize,
         string? category,
-        Visibility? visibility);
+        Visibility? visibility,
+        string? search);
 
     /// <summary>
     /// Get specific system asset.

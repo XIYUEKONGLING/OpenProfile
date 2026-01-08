@@ -753,7 +753,8 @@ public class AssetService : IAssetService
         int page,
         int pageSize,
         string? category,
-        Visibility? visibility)
+        Visibility? visibility,
+        string? search)
     {
         var query = _context.SystemAssets.AsNoTracking();
 

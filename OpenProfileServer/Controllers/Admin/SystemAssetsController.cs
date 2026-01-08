@@ -33,9 +33,10 @@ public class SystemAssetsController : ControllerBase
         [FromQuery] int page = 1,
         [FromQuery] int pageSize = 20,
         [FromQuery] string? category = null,
-        [FromQuery] Visibility? visibility = null)
+        [FromQuery] Visibility? visibility = null,
+        [FromQuery] string? search = null)
     {
-        return Ok(await _assetService.GetSystemAssetsAsync(page, pageSize, category, visibility));
+        return Ok(await _assetService.GetSystemAssetsAsync(page, pageSize, category, visibility, search));
     }
 
     /// <summary>
