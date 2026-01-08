@@ -125,7 +125,7 @@ public class StaticGenerator
 
         var accounts = await _context.Accounts
             .AsNoTracking()
-            .Where(a => a.Status == AccountStatus.Active)
+            .Where(a => a.Status == AccountStatus.Active || a.Status == AccountStatus.Suspended || a.Status == AccountStatus.Banned)
             .Select(a => new { a.Id, a.AccountName, a.Type })
             .ToListAsync();
 
