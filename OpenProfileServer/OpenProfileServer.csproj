@@ -49,6 +49,7 @@
       <Folder Include="Entities\" />
       <Folder Include="Infrastructure\" />
       <Folder Include="Middlewares\" />
+      <Folder Include="Migrations\" />
       <Folder Include="Structs\" />
     </ItemGroup>
 

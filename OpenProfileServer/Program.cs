@@ -98,28 +98,32 @@ public class Program
             logger.LogInformation("Starting application in {Environment} mode", app.Environment.EnvironmentName);
             logger.LogInformation("Using database provider: {Provider}", dbSettings.Type);
             
-            // Database Migration Logic
             var context = services.GetRequiredService<ApplicationDbContext>();
-            if (env.IsDevelopment())
+            
+            // Check for Environment Variable to force creation (Bypasses Migrations)
+            var forceCreateRaw = Environment.GetEnvironmentVariable("DATABASE_FORCE_CREATE");
+            var shouldForceCreate = string.Equals(forceCreateRaw, "true", StringComparison.OrdinalIgnoreCase);
+            
+            if (shouldForceCreate)
             {
-                // For SQLite in Dev, this creates the .db file and all tables 
-                // logger.LogInformation("Ensuring database is created (Development)...");
-                // await context.Database.EnsureCreatedAsync();
-                var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
-                if (pendingMigrations.Any())
-                {
-                    logger.LogInformation("Applying pending migrations...");
-                    await context.Database.MigrateAsync();
-                }
+                logger.LogWarning("DATABASE_FORCE_CREATE is set to true. Attempting to EnsureCreatedAsync (Bypassing Migrations)...");
+                var created = await context.Database.EnsureCreatedAsync();
+                logger.LogInformation(created ? "Database was created." : "Database already exists.");
             }
             else
             {
-                // In production, we apply migrations safely
+                // Standard Production Path: Use Migrations
+                logger.LogInformation("Checking for pending migrations...");
                 var pendingMigrations = await context.Database.GetPendingMigrationsAsync();
+                
                 if (pendingMigrations.Any())
                 {
-                    logger.LogInformation("Applying pending migrations...");
+                    logger.LogInformation("Applying {Count} pending migrations...", pendingMigrations.Count());
                     await context.Database.MigrateAsync();
+                }
+                else
+                {
+                    logger.LogInformation("No pending migrations found.");
                 }
             }
 
